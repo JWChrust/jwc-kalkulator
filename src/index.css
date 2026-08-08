@@ -7,3 +7,50 @@
 body {
   margin: 0;
 }
+
+/*
+ * Responsive 3-pane layout, driven by window aspect ratio (not just width):
+ *  - wide (landscape):        all 3 panes in a row
+ *  - medium (in between):     left+center panes on top, right pane spans below
+ *  - narrow (portrait/tall):  all 3 panes stacked
+ */
+.pane-grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: 'left center right';
+}
+
+@media (max-aspect-ratio: 3/2) {
+  .pane-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas:
+      'left center'
+      'right right';
+  }
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .pane-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+      'left'
+      'center'
+      'right';
+  }
+}
+
+.pane-left {
+  grid-area: left;
+}
+
+.pane-center {
+  grid-area: center;
+}
+
+.pane-right {
+  grid-area: right;
+}
