@@ -4,6 +4,11 @@ import { roundTo1 } from './format'
 import { CONCRETE_CLASSES, STEEL_GRADES } from './materials'
 import corbelDiagram from '../assets/corbel1.png'
 
+function isNonPositive(value: string): boolean {
+  const n = Number(value)
+  return value.trim() !== '' && Number.isFinite(n) && n <= 0
+}
+
 interface NumericFieldProps {
   id: string
   label: ReactNode
@@ -80,6 +85,12 @@ function CorbelInputs() {
   } = useCorbel()
 
   const geometryError = Number(aH) > Number(hDim)
+  const fVSdInvalid = isNonPositive(fVSd)
+  const aFInvalid = isNonPositive(aF)
+  const aHInvalid = isNonPositive(aH)
+  const bInvalid = isNonPositive(bDim)
+  const hInvalid = isNonPositive(hDim)
+  const anyNonPositive = fVSdInvalid || aFInvalid || aHInvalid || bInvalid || hInvalid
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-4">
@@ -131,6 +142,8 @@ function CorbelInputs() {
         unit="[kN]"
         value={fVSd}
         onChange={setFVSd}
+        allowNegative={false}
+        error={fVSdInvalid}
       />
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-slate-300 p-3">
@@ -149,6 +162,7 @@ function CorbelInputs() {
               value={aF}
               onChange={setAF}
               allowNegative={false}
+              error={aFInvalid}
             />
             <NumericField
               id="a-h"
@@ -162,7 +176,7 @@ function CorbelInputs() {
               value={aH}
               onChange={setAH}
               allowNegative={false}
-              error={geometryError}
+              error={geometryError || aHInvalid}
             />
           </div>
           <div className="flex flex-col gap-3">
@@ -174,6 +188,7 @@ function CorbelInputs() {
               value={bDim}
               onChange={setBDim}
               allowNegative={false}
+              error={bInvalid}
             />
             <NumericField
               id="h-dim"
@@ -183,7 +198,7 @@ function CorbelInputs() {
               value={hDim}
               onChange={setHDim}
               allowNegative={false}
-              error={geometryError}
+              error={geometryError || hInvalid}
             />
           </div>
         </div>
@@ -193,6 +208,10 @@ function CorbelInputs() {
           </p>
         )}
       </fieldset>
+
+      {anyNonPositive && (
+        <p className="text-xs text-red-600">Wszystkie wartości muszą być większe od 0</p>
+      )}
 
       <img
         src={corbelDiagram}

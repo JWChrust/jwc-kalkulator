@@ -87,9 +87,13 @@ function CorbelResults() {
           <Formula
             tex={String.raw`F_{V,Rd} = \begin{cases} 0{,}4 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d & \text{jeżeli } \frac{a_F}{h} \le 0{,}3 \\ 0{,}5 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d & \text{jeżeli } 0{,}3 < \frac{a_F}{h} \le 1{,}0 \end{cases}`}
           />
-          <Formula
-            tex={String.raw`\frac{a_F}{h} = \mathbf{${formatNumberTex(aFh, 3)}} \Rightarrow F_{V,Rd} = \mathbf{${formatNumberTex(fVRd)}}\ [\text{kN}]`}
-          />
+          {aFh > 1 ? (
+            <p className="text-sm font-semibold text-red-600">❌ źle dobrana geometria wspornika</p>
+          ) : (
+            <Formula
+              tex={String.raw`\frac{a_F}{h} = \mathbf{${formatNumberTex(aFh, 3)}} \Rightarrow F_{V,Rd} = \mathbf{${formatNumberTex(fVRd)}}\ [\text{kN}]`}
+            />
+          )}
         </div>
       </div>
     </div>
