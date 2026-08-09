@@ -1,13 +1,10 @@
 import Collapsible from '../../components/Collapsible'
 import Formula from '../../components/Formula'
-import RebarSelector, { barArea } from '../../components/RebarSelector'
+import RebarSelector from '../../components/RebarSelector'
+import RebarSelectorAuto from '../../components/RebarSelectorAuto'
+import { computeCorbelResult, GAMMA_C, GAMMA_S } from './calculations'
 import { useCorbel } from './CorbelContext'
 import { formatNumberTex } from './format'
-import { getFck, getFyk } from './materials'
-
-const ALPHA_CC = 0.85
-const GAMMA_C = 1.4
-const GAMMA_S = 1.15
 
 function CorbelResults() {
   const {
@@ -22,40 +19,53 @@ function CorbelResults() {
     setRebar11Count,
     rebar11Diameter,
     setRebar11Diameter,
-    rebar12Count,
-    setRebar12Count,
     rebar12Diameter,
     setRebar12Diameter,
+    rebarSwDiameter,
+    setRebarSwDiameter,
   } = useCorbel()
 
   const fVSdNum = Number(fVSd) || 0
-  const hSd = Math.max(10, 0.2 * fVSdNum)
-  const d = (Number(hDim) || 0) - (Number(aH) || 0)
-  const fck = getFck(concreteClass)
-  const fyk = getFyk(steelGrade)
-  const nu = 0.6 * (1 - fck / 250)
-  const fcd = fck / GAMMA_C
-  const fyd = fyk / GAMMA_S
-
   const aFNum = Number(aF) || 0
+  const aHNum = Number(aH) || 0
   const hNum = Number(hDim) || 0
   const bNum = Number(bDim) || 0
-  const aFh = hNum !== 0 ? aFNum / hNum : 0
-  const coefficient = aFh <= 0.3 ? 0.4 : 0.5
-  const fVRd = (coefficient * nu * fcd * ALPHA_CC * bNum * d) / 1000
 
-  const a1 = (fVSdNum * 1000) / (fcd * ALPHA_CC * bNum)
-  const aDist = aFNum + 0.5 * a1
-  const a2 = d - Math.sqrt(d * d - 2 * a1 * aDist)
-  const z = d - 0.5 * a2
-
-  const aHNum = Number(aH) || 0
-  const as1Case1 = ((0.5 * fVSdNum + hSd) * 1000) / fyd
-  const as1Case2 = ((fVSdNum * (aDist / z) + hSd * ((aHNum + z) / z)) * 1000) / fyd
-  const as1 = aFh <= 0.3 ? as1Case1 : as1Case2
-
-  const asMin = 0.004 * bNum * d
-  const asReq = Math.max(as1, asMin)
+  const calc = computeCorbelResult({
+    fVSd: fVSdNum,
+    aF: aFNum,
+    aH: aHNum,
+    hDim: hNum,
+    bDim: bNum,
+    concreteClass,
+    steelGrade,
+    rebar11Count,
+    rebar11Diameter,
+    rebar12Diameter,
+  })
+  const {
+    hSd,
+    d,
+    fck,
+    fyk,
+    nu,
+    fcd,
+    fyd,
+    aFh,
+    fVRd,
+    a1,
+    aDist,
+    a2,
+    z,
+    as1,
+    asMin,
+    asReq,
+    as11Area,
+    as12RequiredArea,
+    as12Area,
+    asProvided,
+    aswH,
+  } = calc
 
   // Formatted values reused in both the symbolic and value-substituted equation renderings.
   const fVSdTex = formatNumberTex(fVSdNum)
@@ -80,10 +90,10 @@ function CorbelResults() {
   const fVRdTex = formatNumberTex(fVRd)
   const aFhTex = formatNumberTex(aFh, 3)
 
-  const as11Area = Math.round(rebar11Count * barArea(rebar11Diameter))
-  const as12Area = Math.round(rebar12Count * barArea(rebar12Diameter))
-  const asProvided = as11Area + as12Area
+  const as11AreaTex = formatNumberTex(as11Area, 0)
+  const as12AreaTex = formatNumberTex(as12Area, 0)
   const asProvidedTex = formatNumberTex(asProvided, 0)
+  const aswHTex = formatNumberTex(aswH, 0)
   // Stresses substituted into force/geometry formulas (kN, mm) are expressed in kN/mm² instead
   // of MPa so the substituted arithmetic stays dimensionally consistent without a hidden ×1000.
   const fcdKNTex = formatNumberTex(fcd / 1000, 4)
@@ -91,7 +101,7 @@ function CorbelResults() {
 
   return (
     <div className="flex flex-col gap-4 text-slate-900">
-      <Collapsible label="obliczenia">
+      <Collapsible label="obliczenia zbrojenia głównego">
         {(showValues) => (
           <>
             <h2 className="text-lg font-semibold">Obliczenia</h2>
@@ -284,7 +294,7 @@ function CorbelResults() {
       </Collapsible>
 
       <div className="flex flex-col gap-1">
-        <p className="text-[0.825rem] text-slate-600">Zbrojenie przyjęte</p>
+        <p className="text-[0.825rem] text-slate-600">Zbrojenie główne</p>
         <RebarSelector
           label="pręty pionowe"
           resultVariable="A_{s11}"
@@ -295,15 +305,13 @@ function CorbelResults() {
             setRebar11Diameter(diameter)
           }}
         />
-        <RebarSelector
+        <RebarSelectorAuto
           label="pętle poziome"
           resultVariable="A_{s12}"
+          requiredArea={as12RequiredArea}
           dotColorClass="bg-[darkorange]"
-          value={{ count: rebar12Count, diameter: rebar12Diameter }}
-          onChange={({ count, diameter }) => {
-            setRebar12Count(count)
-            setRebar12Diameter(diameter)
-          }}
+          value={{ diameter: rebar12Diameter }}
+          onChange={({ diameter }) => setRebar12Diameter(diameter)}
         />
       </div>
 
@@ -314,6 +322,35 @@ function CorbelResults() {
               ? String.raw`\textcolor{green}{\checkmark}`
               : String.raw`\textcolor{red}{\times}`
           }`}
+        />
+      </div>
+
+      <Collapsible label="obliczenia strzemion poziomych">
+        {(showValues) => (
+          <>
+            <p className="text-[0.825rem] text-slate-600">Zbrojenie strzemion poziomych</p>
+            <Formula
+              tex={
+                showValues
+                  ? String.raw`A_{sw,h} = \begin{cases} 0{,}5 \cdot ${fVSdTex} / ${fydKNTex} & \text{dla } a_F/h \le 0{,}3 \\ 0{,}5 \cdot (${as11AreaTex} + ${as12AreaTex}) & \text{dla } 0{,}3 < a_F/h \le 0{,}6 \\ 0{,}3 \cdot (${as11AreaTex} + ${as12AreaTex}) & \text{dla } a_F/h > 0{,}6 \end{cases}`
+                  : String.raw`A_{sw,h} = \begin{cases} 0{,}5 \cdot F_{V,Sd} / f_{ywd} & \text{dla } a_F/h \le 0{,}3 \\ 0{,}5 \cdot (A_{s11} + A_{s12}) & \text{dla } 0{,}3 < a_F/h \le 0{,}6 \\ 0{,}3 \cdot (A_{s11} + A_{s12}) & \text{dla } a_F/h > 0{,}6 \end{cases}`
+              }
+            />
+            <Formula
+              tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} \Rightarrow A_{sw,h} = \mathbf{${aswHTex}}\ [\text{mm}^2]`}
+            />
+          </>
+        )}
+      </Collapsible>
+
+      <div className="flex flex-col gap-1">
+        <RebarSelectorAuto
+          label="strzemiona poziome"
+          resultVariable="A_{sw,h}"
+          requiredArea={aswH}
+          dotColorClass="bg-[blue]"
+          value={{ diameter: rebarSwDiameter }}
+          onChange={({ diameter }) => setRebarSwDiameter(diameter)}
         />
       </div>
     </div>

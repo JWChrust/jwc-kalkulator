@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Formula from './Formula'
+import RebarSelectorFrame from './RebarSelectorFrame'
 
 const DIAMETERS = [6, 8, 10, 12, 14, 16, 20, 25, 32]
 const COUNTS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -26,6 +26,7 @@ export function barArea(diameter: number): number {
   return Math.PI * (diameter / 2) ** 2
 }
 
+/** Manual picker: user chooses both bar count and diameter from a full grid. */
 function RebarSelector({
   label,
   resultVariable,
@@ -39,10 +40,13 @@ function RebarSelector({
   const sufficient = requiredArea === undefined ? undefined : providedArea >= requiredArea
 
   return (
-    <div className="flex w-[27rem] items-center gap-3 rounded-md border-2 border-slate-600 p-2 text-sm">
-      <span className={`h-3 w-3 shrink-0 rounded-full ${dotColorClass}`} />
-      <span className="w-32 pr-2 text-slate-700">{label}</span>
-
+    <RebarSelectorFrame
+      label={label}
+      dotColorClass={dotColorClass}
+      resultVariable={resultVariable}
+      providedArea={providedArea}
+      widthClass="w-[27rem]"
+    >
       <div className="relative w-16 shrink-0">
         <button
           type="button"
@@ -107,11 +111,7 @@ function RebarSelector({
           </>
         )}
       </div>
-
-      <span className="w-44 shrink-0 whitespace-nowrap">
-        <Formula tex={String.raw`${resultVariable} = \mathbf{${providedArea}}\ [\text{mm}^2]`} />
-      </span>
-    </div>
+    </RebarSelectorFrame>
   )
 }
 
