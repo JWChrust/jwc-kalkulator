@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Box3, DoubleSide, Vector3 } from 'three'
@@ -496,7 +504,7 @@ function FrontIcon() {
   )
 }
 
-const viewButtons: { preset: ViewPreset; label: string; Icon: () => JSX.Element }[] = [
+const viewButtons: { preset: ViewPreset; label: string; Icon: () => ReactElement }[] = [
   { preset: 'iso', label: 'Widok podstawowy', Icon: IsoIcon },
   { preset: 'top', label: 'Widok z góry', Icon: TopIcon },
   { preset: 'side', label: 'Widok z boku', Icon: SideIcon },
