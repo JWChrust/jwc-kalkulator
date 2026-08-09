@@ -93,7 +93,7 @@ function CorbelInputs() {
   const anyNonPositive = fVSdInvalid || aFInvalid || aHInvalid || bInvalid || hInvalid
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold text-slate-900">Zbrojenie wsporników krótkich</h2>
 
       <div className="flex flex-col gap-1">

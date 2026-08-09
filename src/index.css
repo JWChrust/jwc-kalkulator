@@ -4,6 +4,10 @@
   color-scheme: light dark;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
 }
@@ -17,14 +21,14 @@ body {
 .pane-grid {
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: max-content 1fr 1fr;
   grid-template-rows: 1fr;
   grid-template-areas: 'left center right';
 }
 
 @media (max-aspect-ratio: 3/2) {
   .pane-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: max-content 1fr;
     grid-template-rows: 1fr 1fr;
     grid-template-areas:
       'left center'
@@ -45,12 +49,15 @@ body {
 
 .pane-left {
   grid-area: left;
+  min-width: 0;
 }
 
 .pane-center {
   grid-area: center;
+  min-width: 0;
 }
 
 .pane-right {
   grid-area: right;
+  min-width: 0;
 }
