@@ -28,11 +28,11 @@ function RebarSelectorFrame({
       className={`flex ${widthClass} items-center gap-3 rounded-md border-2 border-slate-600 p-2 text-sm`}
     >
       <span className={`h-3 w-3 shrink-0 rounded-full ${dotColorClass}`} />
-      <span className="w-32 pr-2 text-slate-700">{label}</span>
+      <span className="w-40 shrink-0 whitespace-nowrap pr-2 text-slate-700">{label}</span>
 
       {children}
 
-      <span className="w-44 shrink-0 whitespace-nowrap">
+      <span className="w-44 shrink-0 whitespace-nowrap pl-3">
         <Formula tex={String.raw`${resultVariable} = \mathbf{${providedArea}}\ [\text{mm}^2]`} />
       </span>
     </div>

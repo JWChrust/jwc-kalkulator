@@ -45,13 +45,13 @@ function RebarSelector({
       dotColorClass={dotColorClass}
       resultVariable={resultVariable}
       providedArea={providedArea}
-      widthClass="w-[27rem]"
+      widthClass="w-[32rem]"
     >
-      <div className="relative w-16 shrink-0">
+      <div className="relative w-28 shrink-0">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-center text-base font-bold hover:border-indigo-500 focus:border-indigo-500 focus:outline-none ${
+          className={`w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-2 py-1 text-center text-base font-bold hover:border-indigo-500 focus:border-indigo-500 focus:outline-none ${
             sufficient === undefined ? 'text-slate-900' : sufficient ? 'text-green-600' : 'text-red-900'
           }`}
         >
@@ -65,9 +65,12 @@ function RebarSelector({
               <table className="border-collapse text-xs">
                 <thead>
                   <tr>
-                    <th className="px-2 py-1" />
+                    <th className="border border-slate-300 bg-slate-100 px-2 py-1" />
                     {DIAMETERS.map((d) => (
-                      <th key={d} className="px-2 py-1 font-semibold text-slate-700">
+                      <th
+                        key={d}
+                        className="border border-slate-300 bg-slate-100 px-2 py-1 font-semibold text-slate-700"
+                      >
                         ⌀{d}
                       </th>
                     ))}
@@ -76,14 +79,16 @@ function RebarSelector({
                 <tbody>
                   {COUNTS.map((c) => (
                     <tr key={c}>
-                      <th className="px-2 py-1 text-right font-semibold text-slate-700">{c}</th>
+                      <th className="border border-slate-300 bg-slate-100 px-2 py-1 text-right font-semibold text-slate-700">
+                        {c}
+                      </th>
                       {DIAMETERS.map((d) => {
                         const area = Math.round(c * barArea(d))
                         const cellSufficient =
                           requiredArea === undefined ? undefined : area >= requiredArea
                         const isSelected = c === value.count && d === value.diameter
                         return (
-                          <td key={d}>
+                          <td key={d} className="border border-slate-300">
                             <button
                               type="button"
                               onClick={() => {

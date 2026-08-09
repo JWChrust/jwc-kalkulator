@@ -23,6 +23,8 @@ interface CorbelState {
   setRebar12Diameter: (v: number) => void
   rebarSwDiameter: number
   setRebarSwDiameter: (v: number) => void
+  rebar31Diameter: number
+  setRebar31Diameter: (v: number) => void
 }
 
 const CorbelContext = createContext<CorbelState | null>(null)
@@ -39,6 +41,7 @@ export function CorbelProvider({ children }: { children: ReactNode }) {
   const [rebar11Diameter, setRebar11Diameter] = useState(16)
   const [rebar12Diameter, setRebar12Diameter] = useState(8)
   const [rebarSwDiameter, setRebarSwDiameter] = useState(8)
+  const [rebar31Diameter, setRebar31Diameter] = useState(8)
 
   return (
     <CorbelContext.Provider
@@ -65,6 +68,8 @@ export function CorbelProvider({ children }: { children: ReactNode }) {
         setRebar12Diameter,
         rebarSwDiameter,
         setRebarSwDiameter,
+        rebar31Diameter,
+        setRebar31Diameter,
       }}
     >
       {children}

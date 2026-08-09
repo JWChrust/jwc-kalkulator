@@ -2,7 +2,7 @@ import { getFck, getFyk } from './materials'
 import { barArea } from '../../components/RebarSelector'
 
 export const ALPHA_CC = 0.85
-export const GAMMA_C = 1.4
+export const GAMMA_C = 1.5
 export const GAMMA_S = 1.15
 
 export interface CorbelGeometryInputs {
@@ -16,6 +16,8 @@ export interface CorbelGeometryInputs {
   rebar11Count: number
   rebar11Diameter: number
   rebar12Diameter: number
+  rebarSwDiameter: number
+  rebar31Diameter: number
 }
 
 export interface CorbelCalcResult {
@@ -44,6 +46,27 @@ export interface CorbelCalcResult {
   asProvided: number
   fywd: number
   aswH: number
+  rebarSwSingleArea: number
+  rebarSwCount: number
+  aswHArea: number
+  beta: number
+  kFactor: number
+  rhoL: number
+  vRdc: number
+  linkCase1: boolean
+  linkCase2: boolean
+  linkCase3: boolean
+  asLink: number
+  rebar31SingleArea: number
+  rebar31Count: number
+  asLinkArea: number
+}
+
+/** Stirrup legs come in pairs (2-cięte, 4-cięte, ...): round the raw bar count up to the nearest even number. */
+function legsForArea(requiredArea: number, diameter: number): number {
+  const area = barArea(diameter)
+  const rawCount = area > 0 ? Math.ceil(requiredArea / area) : 0
+  return 2 * Math.ceil(rawCount / 2)
 }
 
 export function computeCorbelResult({
@@ -57,6 +80,8 @@ export function computeCorbelResult({
   rebar11Count,
   rebar11Diameter,
   rebar12Diameter,
+  rebarSwDiameter,
+  rebar31Diameter,
 }: CorbelGeometryInputs): CorbelCalcResult {
   const hSd = Math.max(10, 0.2 * fVSd)
   const d = hDim - aH
@@ -85,7 +110,7 @@ export function computeCorbelResult({
   const as11Area = Math.round(rebar11Count * barArea(rebar11Diameter))
   const as12RequiredArea = Math.max(0, asReq - as11Area)
   const rebar12SingleArea = barArea(rebar12Diameter)
-  const rebar12Count = rebar12SingleArea > 0 ? Math.ceil(as12RequiredArea / rebar12SingleArea) : 0
+  const rebar12Count = legsForArea(as12RequiredArea, rebar12Diameter)
   const as12Area = Math.round(rebar12Count * rebar12SingleArea)
   const asProvided = as11Area + as12Area
 
@@ -95,6 +120,34 @@ export function computeCorbelResult({
   const aswHCase2 = 0.5 * (as11Area + as12Area)
   const aswHCase3 = 0.3 * (as11Area + as12Area)
   const aswH = aFh <= 0.3 ? aswHCase1 : aFh <= 0.6 ? aswHCase2 : aswHCase3
+
+  const rebarSwSingleArea = barArea(rebarSwDiameter)
+  const rebarSwCount = legsForArea(aswH, rebarSwDiameter)
+  const aswHArea = Math.round(rebarSwCount * rebarSwSingleArea)
+
+  // Vertical stirrup checks: concrete shear capacity without transverse reinforcement.
+  const beta = d > 0 ? aF / (2 * d) : 0
+  const kFactor = Math.min(d > 0 ? 1 + Math.sqrt(200 / d) : 2, 2)
+  const bdProduct = bDim * d
+  const rhoL = bdProduct > 0 ? (as11Area + as12Area) / bdProduct : 0
+  const vRdc = (0.129 * kFactor * Math.cbrt(100 * rhoL * fck) * bDim * d) / 1000
+
+  // Required vertical stirrup area: not needed at all for low aF/h; otherwise its formula depends
+  // on whether the concrete alone (V_Rd,c) already covers the shear or not.
+  const linkCase1 = aFh <= 0.5
+  const linkCase2 = aFh > 0.5 && vRdc < fVSd
+  const linkCase3 = aFh > 0.5 && vRdc >= fVSd
+  const asLink = linkCase1
+    ? 0
+    : linkCase2
+      ? 0.5 * (fVSd / (fyd / 1000))
+      : z > 0
+        ? (((2 * aDist) / z - 1) / (3 * (fyd / 1000))) * fVSd
+        : 0
+
+  const rebar31SingleArea = barArea(rebar31Diameter)
+  const rebar31Count = legsForArea(asLink, rebar31Diameter)
+  const asLinkArea = Math.round(rebar31Count * rebar31SingleArea)
 
   return {
     hSd,
@@ -122,5 +175,19 @@ export function computeCorbelResult({
     asProvided,
     fywd,
     aswH,
+    rebarSwSingleArea,
+    rebarSwCount,
+    aswHArea,
+    beta,
+    kFactor,
+    rhoL,
+    vRdc,
+    linkCase1,
+    linkCase2,
+    linkCase3,
+    asLink,
+    rebar31SingleArea,
+    rebar31Count,
+    asLinkArea,
   }
 }

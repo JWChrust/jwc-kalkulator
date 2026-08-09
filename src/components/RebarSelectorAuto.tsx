@@ -32,7 +32,9 @@ function RebarSelectorAuto({
   const [open, setOpen] = useState(false)
   const singleArea = barArea(value.diameter)
   const count = singleArea > 0 ? Math.ceil(requiredArea / singleArea) : 0
-  const providedArea = Math.round(count * singleArea)
+  // Stirrups come in an even number of cut legs: 1-2 -> 2-cięte, 3-4 -> 4-cięte, etc.
+  const legs = 2 * Math.ceil(count / 2)
+  const providedArea = Math.round(legs * singleArea)
 
   return (
     <RebarSelectorFrame
@@ -40,14 +42,14 @@ function RebarSelectorAuto({
       dotColorClass={dotColorClass}
       resultVariable={resultVariable}
       providedArea={providedArea}
-      widthClass="w-[27rem]"
+      widthClass="w-[32rem]"
     >
-      <div className="flex w-16 shrink-0 items-center gap-1">
+      <div className="flex w-28 shrink-0 items-center gap-1">
         <div className="relative min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="w-full rounded-md border border-slate-300 bg-white px-1 py-1 text-center text-base font-bold text-slate-900 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-1 py-1 text-center text-base font-bold text-slate-900 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
           >
             ⌀{value.diameter}
           </button>
@@ -86,7 +88,7 @@ function RebarSelectorAuto({
           )}
         </div>
 
-        <span className="shrink-0 text-base font-bold text-slate-900">x{count}</span>
+        <span className="shrink-0 text-base font-bold text-slate-900">{legs}-cięte</span>
       </div>
     </RebarSelectorFrame>
   )

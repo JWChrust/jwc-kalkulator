@@ -6,6 +6,11 @@ import { computeCorbelResult, GAMMA_C, GAMMA_S } from './calculations'
 import { useCorbel } from './CorbelContext'
 import { formatNumberTex } from './format'
 
+/** Underlines a piecewise-formula cell (expression or condition) when its case is the one in effect. */
+function underline(tex: string, active: boolean): string {
+  return active ? `\\underline{${tex}}` : tex
+}
+
 function CorbelResults() {
   const {
     fVSd,
@@ -23,6 +28,8 @@ function CorbelResults() {
     setRebar12Diameter,
     rebarSwDiameter,
     setRebarSwDiameter,
+    rebar31Diameter,
+    setRebar31Diameter,
   } = useCorbel()
 
   const fVSdNum = Number(fVSd) || 0
@@ -42,6 +49,8 @@ function CorbelResults() {
     rebar11Count,
     rebar11Diameter,
     rebar12Diameter,
+    rebarSwDiameter,
+    rebar31Diameter,
   })
   const {
     hSd,
@@ -65,6 +74,16 @@ function CorbelResults() {
     as12Area,
     asProvided,
     aswH,
+    aswHArea,
+    beta,
+    kFactor,
+    rhoL,
+    vRdc,
+    linkCase1,
+    linkCase2,
+    linkCase3,
+    asLink,
+    asLinkArea,
   } = calc
 
   // Formatted values reused in both the symbolic and value-substituted equation renderings.
@@ -79,10 +98,10 @@ function CorbelResults() {
   const gammaSTex = formatNumberTex(GAMMA_S, 2)
   const nuTex = formatNumberTex(nu, 3)
   const bTex = formatNumberTex(bNum)
-  const a1Tex = formatNumberTex(a1)
-  const aDistTex = formatNumberTex(aDist)
-  const a2Tex = formatNumberTex(a2)
-  const zTex = formatNumberTex(z)
+  const a1Tex = formatNumberTex(a1, 0)
+  const aDistTex = formatNumberTex(aDist, 0)
+  const a2Tex = formatNumberTex(a2, 0)
+  const zTex = formatNumberTex(z, 0)
   const aFTex = formatNumberTex(aFNum)
   const asMinTex = formatNumberTex(asMin, 0)
   const as1Tex = formatNumberTex(as1, 0)
@@ -94,17 +113,40 @@ function CorbelResults() {
   const as12AreaTex = formatNumberTex(as12Area, 0)
   const asProvidedTex = formatNumberTex(asProvided, 0)
   const aswHTex = formatNumberTex(aswH, 0)
+  const aswHAreaTex = formatNumberTex(aswHArea, 0)
+  // Maximum stirrup spacing: 0,25h, rounded down to the nearest 10mm.
+  const maxStirrupSpacingMm = Math.floor((0.25 * hNum) / 10) * 10
+  const maxStirrupSpacingCm = maxStirrupSpacingMm / 10
   // Stresses substituted into force/geometry formulas (kN, mm) are expressed in kN/mm² instead
   // of MPa so the substituted arithmetic stays dimensionally consistent without a hidden ×1000.
   const fcdKNTex = formatNumberTex(fcd / 1000, 4)
   const fydKNTex = formatNumberTex(fyd / 1000, 4)
+  const fckKNTex = formatNumberTex(fck / 1000, 4)
+
+  // Which row of each piecewise (cases) formula currently applies, for underlining.
+  const case1 = aFh <= 0.3
+  const case2 = aFh > 0.3 && aFh <= 1
+  const swCase1 = aFh <= 0.3
+  const swCase2 = aFh > 0.3 && aFh <= 0.6
+  const swCase3 = aFh > 0.6
+
+  // Whether each collapsible's own content currently shows a failing check or invalid geometry.
+  const basicWarning = aFh > 1 || fVRd < fVSdNum
+  const mainRebarWarning = aFh > 1
+
+  const betaTex = formatNumberTex(beta, 2)
+  const kTex = formatNumberTex(kFactor, 2)
+  const rhoLTex = formatNumberTex(rhoL, 4)
+  const vRdcTex = formatNumberTex(vRdc, 1)
+  const asLinkTex = formatNumberTex(asLink, 0)
+  const asLinkProvidedTex = formatNumberTex(asLinkArea, 0)
 
   return (
     <div className="flex flex-col gap-4 text-slate-900">
-      <Collapsible label="obliczenia zbrojenia głównego">
+      <Collapsible label="obliczenia podstawowe" hasWarning={basicWarning}>
         {(showValues) => (
           <>
-            <h2 className="text-lg font-semibold">Obliczenia</h2>
+            <h2 className="text-lg font-semibold">Obliczenia podstawowe</h2>
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -188,8 +230,8 @@ function CorbelResults() {
                 <Formula
                   tex={
                     showValues
-                      ? String.raw`F_{V,Rd} = \begin{cases} 0{,}4 \cdot ${nuTex} \cdot ${fcdKNTex} \cdot 0{,}85 \cdot ${bTex} \cdot ${dTex} & \text{dla } \frac{a_F}{h} \le 0{,}3 \\ 0{,}5 \cdot ${nuTex} \cdot ${fcdKNTex} \cdot 0{,}85 \cdot ${bTex} \cdot ${dTex} & \text{dla } 0{,}3 < \frac{a_F}{h} \le 1{,}0 \end{cases}`
-                      : String.raw`F_{V,Rd} = \begin{cases} 0{,}4 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d & \text{dla } \frac{a_F}{h} \le 0{,}3 \\ 0{,}5 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d & \text{dla } 0{,}3 < \frac{a_F}{h} \le 1{,}0 \end{cases}`
+                      ? String.raw`F_{V,Rd} = \begin{cases} ${underline(String.raw`0{,}4 \cdot ${nuTex} \cdot ${fcdKNTex} \cdot 0{,}85 \cdot ${bTex} \cdot ${dTex}`, case1)} & ${underline(String.raw`\text{dla } \frac{a_F}{h} \le 0{,}3`, case1)} \\ ${underline(String.raw`0{,}5 \cdot ${nuTex} \cdot ${fcdKNTex} \cdot 0{,}85 \cdot ${bTex} \cdot ${dTex}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < \frac{a_F}{h} \le 1{,}0`, case2)} \end{cases}`
+                      : String.raw`F_{V,Rd} = \begin{cases} ${underline(String.raw`0{,}4 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d`, case1)} & ${underline(String.raw`\text{dla } \frac{a_F}{h} \le 0{,}3`, case1)} \\ ${underline(String.raw`0{,}5 \cdot \nu \cdot f_{cd} \cdot \alpha_{cc} \cdot b \cdot d`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < \frac{a_F}{h} \le 1{,}0`, case2)} \end{cases}`
                   }
                 />
                 {aFh > 1 ? (
@@ -216,13 +258,17 @@ function CorbelResults() {
                 </div>
               )}
             </div>
+          </>
+        )}
+      </Collapsible>
 
-            <hr className="border-slate-400" />
-
+      <Collapsible label="obliczenia zbrojenia głównego" hasWarning={mainRebarWarning}>
+        {(showValues) => (
+          <>
             <h2 className="text-lg font-semibold">Zbrojenie główne</h2>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Współczynniki:</p>
+              <p className="text-[0.825rem] text-slate-600">Wielkości geometryczne</p>
               <div className="flex flex-col gap-1">
                 <Formula
                   tex={
@@ -260,8 +306,8 @@ function CorbelResults() {
               <Formula
                 tex={
                   showValues
-                    ? String.raw`A_{s1} = \begin{cases} (0{,}5 \cdot ${fVSdTex} + ${hSdTex}) / ${fydKNTex} & \text{dla } a_F/h \le 0{,}3 \\[6pt] (${fVSdTex} \cdot ${aDistTex}/${zTex} + ${hSdTex} \cdot (${aHTex} + ${zTex})/${zTex}) / ${fydKNTex} & \text{dla } 0{,}3 < a_F/h \le 1{,}0 \end{cases}`
-                    : String.raw`A_{s1} = \begin{cases} (0{,}5 \cdot F_{V,Sd} + H_{Sd}) / f_{yd} & \text{dla } a_F/h \le 0{,}3 \\[6pt] (F_{V,Sd} \cdot a/z + H_{Sd} \cdot (a_H + z)/z) / f_{yd} & \text{dla } 0{,}3 < a_F/h \le 1{,}0 \end{cases}`
+                    ? String.raw`A_{s1} = \begin{cases} ${underline(String.raw`(0{,}5 \cdot ${fVSdTex} + ${hSdTex}) / ${fydKNTex}`, case1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, case1)} \\[6pt] ${underline(String.raw`(${fVSdTex} \cdot ${aDistTex}/${zTex} + ${hSdTex} \cdot (${aHTex} + ${zTex})/${zTex}) / ${fydKNTex}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 1{,}0`, case2)} \end{cases}`
+                    : String.raw`A_{s1} = \begin{cases} ${underline(String.raw`(0{,}5 \cdot F_{V,Sd} + H_{Sd}) / f_{yd}`, case1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, case1)} \\[6pt] ${underline(String.raw`(F_{V,Sd} \cdot a/z + H_{Sd} \cdot (a_H + z)/z) / f_{yd}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 1{,}0`, case2)} \end{cases}`
                 }
               />
               {aFh <= 1 && (
@@ -294,7 +340,6 @@ function CorbelResults() {
       </Collapsible>
 
       <div className="flex flex-col gap-1">
-        <p className="text-[0.825rem] text-slate-600">Zbrojenie główne</p>
         <RebarSelector
           label="pręty pionowe"
           resultVariable="A_{s11}"
@@ -332,8 +377,8 @@ function CorbelResults() {
             <Formula
               tex={
                 showValues
-                  ? String.raw`A_{sw,h} = \begin{cases} 0{,}5 \cdot ${fVSdTex} / ${fydKNTex} & \text{dla } a_F/h \le 0{,}3 \\ 0{,}5 \cdot (${as11AreaTex} + ${as12AreaTex}) & \text{dla } 0{,}3 < a_F/h \le 0{,}6 \\ 0{,}3 \cdot (${as11AreaTex} + ${as12AreaTex}) & \text{dla } a_F/h > 0{,}6 \end{cases}`
-                  : String.raw`A_{sw,h} = \begin{cases} 0{,}5 \cdot F_{V,Sd} / f_{ywd} & \text{dla } a_F/h \le 0{,}3 \\ 0{,}5 \cdot (A_{s11} + A_{s12}) & \text{dla } 0{,}3 < a_F/h \le 0{,}6 \\ 0{,}3 \cdot (A_{s11} + A_{s12}) & \text{dla } a_F/h > 0{,}6 \end{cases}`
+                  ? String.raw`A_{sw,h} = \begin{cases} ${underline(String.raw`0{,}5 \cdot ${fVSdTex} / ${fydKNTex}`, swCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, swCase1)} \\ ${underline(String.raw`0{,}5 \cdot (${as11AreaTex} + ${as12AreaTex})`, swCase2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 0{,}6`, swCase2)} \\ ${underline(String.raw`0{,}3 \cdot (${as11AreaTex} + ${as12AreaTex})`, swCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}6`, swCase3)} \end{cases}`
+                  : String.raw`A_{sw,h} = \begin{cases} ${underline(String.raw`0{,}5 \cdot F_{V,Sd} / f_{ywd}`, swCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, swCase1)} \\ ${underline(String.raw`0{,}5 \cdot (A_{s11} + A_{s12})`, swCase2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 0{,}6`, swCase2)} \\ ${underline(String.raw`0{,}3 \cdot (A_{s11} + A_{s12})`, swCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}6`, swCase3)} \end{cases}`
               }
             />
             <Formula
@@ -346,12 +391,148 @@ function CorbelResults() {
       <div className="flex flex-col gap-1">
         <RebarSelectorAuto
           label="strzemiona poziome"
-          resultVariable="A_{sw,h}"
+          resultVariable="A_{s21}"
           requiredArea={aswH}
           dotColorClass="bg-[blue]"
           value={{ diameter: rebarSwDiameter }}
           onChange={({ diameter }) => setRebarSwDiameter(diameter)}
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Formula
+          tex={String.raw`A_{s21} \ge A_{sw,h} \Rightarrow \mathbf{${aswHAreaTex}}\ [\text{mm}^2] \ge \mathbf{${aswHTex}}\ [\text{mm}^2]\quad ${
+            aswHArea >= aswH
+              ? String.raw`\textcolor{green}{\checkmark}`
+              : String.raw`\textcolor{red}{\times}`
+          }`}
+        />
+        <p className="text-[0.825rem] text-slate-600">
+          Strzemiona rozmieścić równomiernie na wysokośći wspornika w rozstawach nie większych niż{' '}
+          {maxStirrupSpacingCm}cm.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1 mt-4">
+        <p className="text-[0.825rem] text-slate-600">
+          Sprawdzenie zapotrzebowania na strzemiona pionowe
+        </p>
+        <Formula
+          tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} ${aFh <= 0.5 ? '\\le' : '>'} 0{,}5 \Rightarrow ${
+            aFh <= 0.5
+              ? String.raw`\textbf{\text{strzemiona pionowe nie są wymagane}}`
+              : String.raw`\textcolor{red}{\textbf{\text{wymagane jest zbrojenie strzemionami pionowymi}}}`
+          }`}
+        />
+      </div>
+
+      <Collapsible label="sprawdzenia strzemion pionowych">
+        {(showValues) => (
+          <>
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">Współczynnik skali</p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`k = \min\left(1 + \sqrt{200/${dTex}};\ 2{,}0\right) = \mathbf{${kTex}}\ [-]`
+                    : String.raw`k = \min\left(1 + \sqrt{200/d};\ 2{,}0\right) = \mathbf{${kTex}}\ [-]`
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">Współczynnik β</p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`\beta = ${aFTex}/(2 \cdot ${dTex}) = \mathbf{${betaTex}}\ [-]`
+                    : String.raw`\beta = a_F/(2d) = \mathbf{${betaTex}}\ [-]`
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">
+                Stopień zbrojenia zakotwionego w korpusie
+              </p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`\rho_l = \dfrac{${as11AreaTex} + ${as12AreaTex}}{${bTex} \cdot ${dTex}} = \mathbf{${rhoLTex}}\ [-]`
+                    : String.raw`\rho_l = \dfrac{A_{s11} + A_{s12}}{b \cdot d} = \mathbf{${rhoLTex}}\ [-]`
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">
+                Nośność elementu bez zbrojenia poprzecznego
+              </p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`V_{Rd,c} = \dfrac{0{,}129 \cdot ${kTex} \cdot \sqrt[3]{100 \cdot ${rhoLTex} \cdot ${fckKNTex}} \cdot ${bTex} \cdot ${dTex}}{100} = \mathbf{${vRdcTex}}\ [\text{kN}]`
+                    : String.raw`V_{Rd,c} = \dfrac{0{,}129 \cdot k \cdot \sqrt[3]{100 \cdot \rho_l \cdot f_{ck}} \cdot b \cdot d}{100} = \mathbf{${vRdcTex}}\ [\text{kN}]`
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">Warunek nośności betonu na ścinanie</p>
+              <Formula
+                tex={String.raw`V_{Rd,c} \ge F_{Ed} \Rightarrow \mathbf{${vRdcTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]\quad ${
+                  vRdc >= fVSdNum
+                    ? String.raw`\textcolor{green}{\checkmark}`
+                    : String.raw`\textcolor{red}{\times}`
+                }`}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.825rem] text-slate-600">Wymagane zbrojenie strzemionami pionowymi</p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`A_{s,link} = \begin{cases} ${underline('0', linkCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}5`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot ${fVSdTex} / ${fydKNTex}`, linkCase2)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} < V_{Ed}`, linkCase2)} \\[6pt] ${underline(String.raw`\left(2 \cdot ${aDistTex}/${zTex} - 1\right) / (3 \cdot ${fydKNTex}) \cdot ${fVSdTex}`, linkCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} \ge V_{Ed}`, linkCase3)} \end{cases}`
+                    : String.raw`A_{s,link} = \begin{cases} ${underline('0', linkCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}5`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot F_{Ed} / f_{yd}`, linkCase2)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} < V_{Ed}`, linkCase2)} \\[6pt] ${underline(String.raw`\left(2a/z - 1\right) / (3 \cdot f_{ywd}) \cdot V_{Ed}`, linkCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} \ge V_{Ed}`, linkCase3)} \end{cases}`
+                }
+              />
+              <Formula
+                tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} \Rightarrow A_{s,link} = \mathbf{${asLinkTex}}\ [\text{mm}^2]`}
+              />
+              {linkCase1 && (
+                <p className="text-sm text-slate-900">
+                  Strzemiona pionowe nie wymagane
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </Collapsible>
+
+      <div className="flex flex-col gap-1">
+        <RebarSelectorAuto
+          label="strzemiona pionowe"
+          resultVariable="A_{s31}"
+          requiredArea={asLink}
+          dotColorClass="bg-[green]"
+          value={{ diameter: rebar31Diameter }}
+          onChange={({ diameter }) => setRebar31Diameter(diameter)}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Formula
+          tex={String.raw`A_{s31} \ge A_{s,link} \Rightarrow \mathbf{${asLinkProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asLinkTex}}\ [\text{mm}^2]\quad ${
+            asLinkArea >= asLink
+              ? String.raw`\textcolor{green}{\checkmark}`
+              : String.raw`\textcolor{red}{\times}`
+          }`}
+        />
+        <p className="text-[0.825rem] text-slate-600">
+          Strzemiona rozmieścić równomiernie na odcinku od lica słupa do krawędzi płytki
+          podporowej w rozstawach nie większych niż {maxStirrupSpacingCm}cm.
+        </p>
       </div>
     </div>
   )

@@ -2,12 +2,8 @@ import type { ReactNode } from 'react'
 import { useCorbel } from './CorbelContext'
 import { roundTo1 } from './format'
 import { CONCRETE_CLASSES, STEEL_GRADES } from './materials'
-import corbelDiagram from '../assets/corbel1.png'
-
-function isNonPositive(value: string): boolean {
-  const n = Number(value)
-  return value.trim() !== '' && Number.isFinite(n) && n <= 0
-}
+import { isAfGreaterThanZ, isNonPositive, isTooLarge } from './validation'
+import corbelDiagram from '../assets/corbel1-rem.png'
 
 interface NumericFieldProps {
   id: string
@@ -57,7 +53,7 @@ function NumericField({
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         onBlur={handleBlur}
-        className={`w-20 shrink-0 rounded-md border bg-white px-2 py-1 text-right text-slate-900 focus:outline-none ${
+        className={`w-16 shrink-0 rounded-md border bg-[lemonchiffon] px-2 py-1 text-right text-slate-900 focus:outline-none ${
           error ? 'border-red-500 focus:border-red-500' : 'border-slate-300 focus:border-indigo-500'
         }`}
       />
@@ -86,11 +82,17 @@ function CorbelInputs() {
 
   const geometryError = Number(aH) > Number(hDim)
   const fVSdInvalid = isNonPositive(fVSd)
-  const aFInvalid = isNonPositive(aF)
-  const aHInvalid = isNonPositive(aH)
-  const bInvalid = isNonPositive(bDim)
-  const hInvalid = isNonPositive(hDim)
-  const anyNonPositive = fVSdInvalid || aFInvalid || aHInvalid || bInvalid || hInvalid
+  const aFInvalid = isNonPositive(aF) || isTooLarge(aF)
+  const aHInvalid = isNonPositive(aH) || isTooLarge(aH)
+  const bInvalid = isNonPositive(bDim) || isTooLarge(bDim)
+  const hInvalid = isNonPositive(hDim) || isTooLarge(hDim)
+  const anyNonPositive = fVSdInvalid || isNonPositive(aF) || isNonPositive(aH) || isNonPositive(bDim) || isNonPositive(hDim)
+  const anyTooLarge = isTooLarge(aF) || isTooLarge(aH) || isTooLarge(bDim) || isTooLarge(hDim)
+  const afGreaterThanZError =
+    !geometryError &&
+    !anyNonPositive &&
+    !anyTooLarge &&
+    isAfGreaterThanZ({ fVSd, aF, aH, hDim, bDim, concreteClass })
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +106,7 @@ function CorbelInputs() {
           id="concrete-class"
           value={concreteClass}
           onChange={(e) => setConcreteClass(e.target.value)}
-          className="w-40 rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 focus:border-indigo-500 focus:outline-none"
+          className="w-40 rounded-md border border-slate-300 bg-[lemonchiffon] px-2 py-1 text-slate-900 focus:border-indigo-500 focus:outline-none"
         >
           {CONCRETE_CLASSES.map((c) => (
             <option key={c} value={c}>
@@ -122,7 +124,7 @@ function CorbelInputs() {
           id="steel-grade"
           value={steelGrade}
           onChange={(e) => setSteelGrade(e.target.value)}
-          className="w-40 rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 focus:border-indigo-500 focus:outline-none"
+          className="w-40 rounded-md border border-slate-300 bg-[lemonchiffon] px-2 py-1 text-slate-900 focus:border-indigo-500 focus:outline-none"
         >
           {STEEL_GRADES.map((s) => (
             <option key={s} value={s}>
@@ -162,7 +164,7 @@ function CorbelInputs() {
               value={aF}
               onChange={setAF}
               allowNegative={false}
-              error={aFInvalid}
+              error={aFInvalid || afGreaterThanZError}
             />
             <NumericField
               id="a-h"
@@ -207,18 +209,26 @@ function CorbelInputs() {
             a<sub>H</sub> nie może być większe niż h
           </p>
         )}
+        {afGreaterThanZError && (
+          <p className="text-xs text-red-600">
+            a<sub>F</sub> nie może być większe niż z (wspornik nie jest krótki)
+          </p>
+        )}
       </fieldset>
 
       {anyNonPositive && (
         <p className="text-xs text-red-600">Wszystkie wartości muszą być większe od 0</p>
       )}
+      {anyTooLarge && (
+        <p className="text-xs text-red-600">Wymiary geometrii nie mogą przekraczać 1000mm</p>
+      )}
 
       <img
         src={corbelDiagram}
         alt="Schemat geometrii wspornika krótkiego"
-        width={455}
-        height={415}
-        className="h-[415px] w-[455px] max-w-none rounded-md border border-slate-300 bg-white object-contain"
+        width={410}
+        height={374}
+        className="h-[374px] w-[410px] max-w-none object-contain"
       />
     </div>
   )
