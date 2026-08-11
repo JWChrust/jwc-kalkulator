@@ -49,7 +49,7 @@ function RebarSelectorAuto({
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-1 py-1 text-center text-base font-bold text-slate-900 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-1 py-1 text-center text-[14px] font-bold text-slate-900 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
           >
             ⌀{value.diameter}
           </button>
@@ -58,7 +58,7 @@ function RebarSelectorAuto({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
               <div className="absolute left-0 top-full z-50 mt-1 overflow-auto rounded-md border border-slate-300 bg-white p-2 shadow-lg">
-                <table className="border-collapse text-xs">
+                <table className="border-collapse text-[14px]">
                   <tbody>
                     <tr>
                       {DIAMETERS.map((d) => {
@@ -88,7 +88,7 @@ function RebarSelectorAuto({
           )}
         </div>
 
-        <span className="shrink-0 text-base font-bold text-slate-900">{legs}-cięte</span>
+        <span className="shrink-0 text-[14px] font-bold text-slate-900">{legs}-cięte</span>
       </div>
     </RebarSelectorFrame>
   )

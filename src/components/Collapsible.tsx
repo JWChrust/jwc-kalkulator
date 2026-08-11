@@ -55,7 +55,7 @@ function Collapsible({ label, hasWarning = false, children }: CollapsibleProps) 
           <button
             type="button"
             onClick={() => setShowValues((v) => !v)}
-            className="absolute right-3 top-3 z-10 shrink-0 rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-xs font-medium text-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
+            className="absolute right-3 top-3 z-10 shrink-0 rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-[14px] font-medium text-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
           >
             {showValues ? 'Pokaż symbole' : 'Pokaż wartości'}
           </button>

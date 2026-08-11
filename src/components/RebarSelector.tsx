@@ -51,21 +51,33 @@ function RebarSelector({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-2 py-1 text-center text-base font-bold hover:border-indigo-500 focus:border-indigo-500 focus:outline-none ${
+          className={`w-full rounded-md border border-slate-300 bg-[lemonchiffon] px-2 py-1 text-center text-[14px] font-bold hover:border-indigo-500 focus:border-indigo-500 focus:outline-none ${
             sufficient === undefined ? 'text-slate-900' : sufficient ? 'text-green-600' : 'text-red-900'
           }`}
         >
-          {value.count}⌀{value.diameter}
+          {value.count === 0 ? '0' : `${value.count}⌀${value.diameter}`}
         </button>
 
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <div className="absolute left-0 top-full z-50 mt-1 overflow-auto rounded-md border border-slate-300 bg-white p-2 shadow-lg">
-              <table className="border-collapse text-xs">
+              <table className="border-collapse text-[14px]">
                 <thead>
                   <tr>
-                    <th className="border border-slate-300 bg-slate-100 px-2 py-1" />
+                    <th className="border border-slate-300 bg-slate-100 p-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange({ count: 0, diameter: value.diameter })
+                          setOpen(false)
+                        }}
+                        className="w-full px-2 py-1 font-bold text-red-900 hover:bg-slate-200"
+                        title="Brak zbrojenia"
+                      >
+                        0
+                      </button>
+                    </th>
                     {DIAMETERS.map((d) => (
                       <th
                         key={d}

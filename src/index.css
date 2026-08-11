@@ -16,20 +16,20 @@ body {
  * Responsive 3-pane layout, driven by window aspect ratio (not just width):
  *  - wide (landscape):        all 3 panes in a row
  *  - medium (in between):     left+center panes on top, right pane spans below
- *  - narrow (portrait/tall):  all 3 panes stacked
+ *  - narrow (portrait/tall):  all 3 panes stacked, scrolling together as one unit
  */
 .pane-grid {
   display: grid;
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-columns: max-content 1fr 1fr;
+  grid-template-columns: 500px 1fr 1fr;
   grid-template-rows: 1fr;
   grid-template-areas: 'left center right';
 }
 
 @media (max-aspect-ratio: 3/2) {
   .pane-grid {
-    grid-template-columns: max-content 1fr;
+    grid-template-columns: 500px 1fr;
     grid-template-rows: 1fr 1fr;
     grid-template-areas:
       'left center'
@@ -40,7 +40,7 @@ body {
 @media (max-aspect-ratio: 1/1) {
   .pane-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
     grid-template-areas:
       'left'
       'center'
@@ -53,6 +53,7 @@ body {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .pane-center {
@@ -60,6 +61,7 @@ body {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   box-shadow: inset 0 0 16px 2px rgba(0, 0, 0, 0.35);
 }
 
@@ -68,4 +70,34 @@ body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/*
+ * Stacked layout scrolls as a single unit instead of each pane independently: switch from grid
+ * to a plain flex column, since flex items keep their natural content height (unlike grid's
+ * "auto" row tracks, which don't reliably grow to fit overflow-visible content).
+ */
+@media (max-aspect-ratio: 1/1) {
+  .pane-grid {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* flex: none (no shrink) so each pane keeps its natural content height instead of being
+     squeezed to fit the viewport — that's what makes the grid as a whole overflow and scroll. */
+  .pane-left,
+  .pane-center,
+  .pane-right {
+    flex: none;
+  }
+
+  .pane-left,
+  .pane-center {
+    overflow-y: visible;
+  }
+
+  .pane-right {
+    min-height: 70vh;
+  }
 }

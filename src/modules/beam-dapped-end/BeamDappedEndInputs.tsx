@@ -1,22 +1,23 @@
 import type { ReactNode } from 'react'
-import { useCorbel } from './CorbelContext'
-import { roundTo1 } from './format'
-import { CONCRETE_CLASSES, STEEL_GRADES } from './materials'
-import { isAfGreaterThanZ, isNonPositive, isTooLarge } from './validation'
+import { useBeamDappedEnd } from './BeamDappedEndContext'
+import { roundTo1 } from '../short-corbel/format'
+import { CONCRETE_CLASSES, STEEL_GRADES } from '../short-corbel/materials'
 import PresetSelector from '../../components/PresetSelector'
-import corbelDiagram from '../assets/corbel1-rem.png'
+import beamCorbelsImg from '../assets/beam-corbels-1.png'
 
-interface CorbelPresetValues {
+interface BeamDappedEndPresetValues {
   concreteClass: string
   steelGrade: string
-  fVSd: string
-  aF: string
-  aH: string
+  vEd: string
+  aV: string
+  aK: string
   hDim: string
+  hK: string
   bDim: string
+  lK: string
 }
 
-const CORBEL_PRESETS: { label: string; values: CorbelPresetValues }[] = []
+const BEAM_DAPPED_END_PRESETS: { label: string; values: BeamDappedEndPresetValues }[] = []
 
 interface NumericFieldProps {
   id: string
@@ -75,53 +76,45 @@ function NumericField({
   )
 }
 
-function CorbelInputs() {
+function BeamDappedEndInputs() {
   const {
     concreteClass,
     setConcreteClass,
     steelGrade,
     setSteelGrade,
-    fVSd,
-    setFVSd,
-    aF,
-    setAF,
-    aH,
-    setAH,
+    vEd,
+    setVEd,
+    aV,
+    setAV,
+    aK,
+    setAK,
     hDim,
     setHDim,
+    hK,
+    setHK,
     bDim,
     setBDim,
-  } = useCorbel()
+    lK,
+    setLK,
+  } = useBeamDappedEnd()
 
-  const geometryError = Number(aH) > Number(hDim)
-  const fVSdInvalid = isNonPositive(fVSd)
-  const aFInvalid = isNonPositive(aF) || isTooLarge(aF)
-  const aHInvalid = isNonPositive(aH) || isTooLarge(aH)
-  const bInvalid = isNonPositive(bDim) || isTooLarge(bDim)
-  const hInvalid = isNonPositive(hDim) || isTooLarge(hDim)
-  const anyNonPositive = fVSdInvalid || isNonPositive(aF) || isNonPositive(aH) || isNonPositive(bDim) || isNonPositive(hDim)
-  const anyTooLarge = isTooLarge(aF) || isTooLarge(aH) || isTooLarge(bDim) || isTooLarge(hDim)
-  const afGreaterThanZError =
-    !geometryError &&
-    !anyNonPositive &&
-    !anyTooLarge &&
-    isAfGreaterThanZ({ fVSd, aF, aH, hDim, bDim, concreteClass })
-
-  const applyPreset = (values: CorbelPresetValues) => {
+  const applyPreset = (values: BeamDappedEndPresetValues) => {
     setConcreteClass(values.concreteClass)
     setSteelGrade(values.steelGrade)
-    setFVSd(values.fVSd)
-    setAF(values.aF)
-    setAH(values.aH)
+    setVEd(values.vEd)
+    setAV(values.aV)
+    setAK(values.aK)
     setHDim(values.hDim)
+    setHK(values.hK)
     setBDim(values.bDim)
+    setLK(values.lK)
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-[14px] font-semibold text-slate-900">Zbrojenie wsporników krótkich</h2>
+      <h2 className="text-[14px] font-semibold text-slate-900">Zbrojenie podcięcia w belce</h2>
 
-      <PresetSelector presets={CORBEL_PRESETS} onSelect={applyPreset} />
+      <PresetSelector presets={BEAM_DAPPED_END_PRESETS} onSelect={applyPreset} />
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-slate-300 p-3">
         <legend className="px-1 text-[14px] font-medium text-slate-700">Materiały</legend>
@@ -164,17 +157,16 @@ function CorbelInputs() {
       </fieldset>
 
       <NumericField
-        id="f-v-sd"
+        id="v-ed"
         label={
           <>
-            F<sub>V,Sd</sub>
+            V<sub>Ed</sub>
           </>
         }
         unit="[kN]"
-        value={fVSd}
-        onChange={setFVSd}
+        value={vEd}
+        onChange={setVEd}
         allowNegative={false}
-        error={fVSdInvalid}
       />
 
       <fieldset className="flex flex-col gap-3 rounded-md border border-slate-300 p-3">
@@ -182,35 +174,31 @@ function CorbelInputs() {
         <div className="flex gap-6">
           <div className="flex flex-col gap-3">
             <NumericField
-              id="a-f"
+              id="a-v"
               label={
                 <>
-                  a<sub>F</sub>
+                  a<sub>v</sub>
                 </>
               }
               labelClassName="w-7"
               unit="[mm]"
-              value={aF}
-              onChange={setAF}
+              value={aV}
+              onChange={setAV}
               allowNegative={false}
-              error={aFInvalid || afGreaterThanZError}
             />
             <NumericField
-              id="a-h"
+              id="a-k"
               label={
                 <>
-                  a<sub>H</sub>
+                  a<sub>k</sub>
                 </>
               }
               labelClassName="w-7"
               unit="[mm]"
-              value={aH}
-              onChange={setAH}
+              value={aK}
+              onChange={setAK}
               allowNegative={false}
-              error={geometryError || aHInvalid}
             />
-          </div>
-          <div className="flex flex-col gap-3">
             <NumericField
               id="b-dim"
               label="b"
@@ -219,8 +207,9 @@ function CorbelInputs() {
               value={bDim}
               onChange={setBDim}
               allowNegative={false}
-              error={bInvalid}
             />
+          </div>
+          <div className="flex flex-col gap-3">
             <NumericField
               id="h-dim"
               label="h"
@@ -229,38 +218,46 @@ function CorbelInputs() {
               value={hDim}
               onChange={setHDim}
               allowNegative={false}
-              error={geometryError || hInvalid}
+            />
+            <NumericField
+              id="h-k"
+              label={
+                <>
+                  h<sub>k</sub>
+                </>
+              }
+              labelClassName="w-7"
+              unit="[mm]"
+              value={hK}
+              onChange={setHK}
+              allowNegative={false}
+            />
+            <NumericField
+              id="l-k"
+              label={
+                <>
+                  l<sub>k</sub>
+                </>
+              }
+              labelClassName="w-7"
+              unit="[mm]"
+              value={lK}
+              onChange={setLK}
+              allowNegative={false}
             />
           </div>
         </div>
-        {geometryError && (
-          <p className="text-[14px] text-red-600">
-            a<sub>H</sub> nie może być większe niż h
-          </p>
-        )}
-        {afGreaterThanZError && (
-          <p className="text-[14px] text-red-600">
-            a<sub>F</sub> nie może być większe niż z (wspornik nie jest krótki)
-          </p>
-        )}
       </fieldset>
 
-      {anyNonPositive && (
-        <p className="text-[14px] text-red-600">Wszystkie wartości muszą być większe od 0</p>
-      )}
-      {anyTooLarge && (
-        <p className="text-[14px] text-red-600">Wymiary geometrii nie mogą przekraczać 1000mm</p>
-      )}
-
       <img
-        src={corbelDiagram}
-        alt="Schemat geometrii wspornika krótkiego"
+        src={beamCorbelsImg}
+        alt="Schemat podcięcia w belce"
         width={440}
-        height={399}
+        height={170}
         className="h-auto w-full max-w-[440px] object-contain"
       />
     </div>
   )
 }
 
-export default CorbelInputs
+export default BeamDappedEndInputs

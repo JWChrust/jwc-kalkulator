@@ -1,5 +1,7 @@
 import Collapsible from '../../components/Collapsible'
 import Formula from '../../components/Formula'
+import StatusIcon from '../../components/StatusIcon'
+import UtilizationBadge from '../../components/UtilizationBadge'
 import RebarSelector from '../../components/RebarSelector'
 import RebarSelectorAuto from '../../components/RebarSelectorAuto'
 import { computeCorbelResult, GAMMA_C, GAMMA_S } from './calculations'
@@ -141,16 +143,23 @@ function CorbelResults() {
   const asLinkTex = formatNumberTex(asLink, 0)
   const asLinkProvidedTex = formatNumberTex(asLinkArea, 0)
 
+  // Utilization ratios (demand / capacity) shown next to each check.
+  const basicUtilization = fVRd > 0 ? (fVSdNum / fVRd) * 100 : 0
+  const mainRebarUtilization = asProvided > 0 ? (asReq / asProvided) * 100 : 0
+  const swUtilization = aswHArea > 0 ? (aswH / aswHArea) * 100 : 0
+  const vRdcUtilization = vRdc > 0 ? (fVSdNum / vRdc) * 100 : 0
+  const linkUtilization = asLinkArea > 0 ? (asLink / asLinkArea) * 100 : 0
+
   return (
     <div className="flex flex-col gap-4 text-slate-900">
       <Collapsible label="obliczenia podstawowe" hasWarning={basicWarning}>
         {(showValues) => (
           <>
-            <h2 className="text-lg font-semibold">Obliczenia podstawowe</h2>
+            <h2 className="text-[14px] font-semibold">Obliczenia podstawowe</h2>
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">Siła pozioma rozciągająca</p>
+                <p className="text-[14px] text-slate-600">Siła pozioma rozciągająca</p>
                 <Formula
                   tex={
                     showValues
@@ -161,7 +170,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">Wysokość użyteczna przekroju</p>
+                <p className="text-[14px] text-slate-600">Wysokość użyteczna przekroju</p>
                 <Formula
                   tex={
                     showValues
@@ -172,7 +181,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">
+                <p className="text-[14px] text-slate-600">
                   Charakterystyczna wytrzymałość betonu na ściskanie
                 </p>
                 <div className="flex items-baseline gap-6">
@@ -188,7 +197,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">
+                <p className="text-[14px] text-slate-600">
                   Charakterystyczna granica plastyczności stali zbrojeniowej
                 </p>
                 <div className="flex items-baseline gap-6">
@@ -204,7 +213,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">
+                <p className="text-[14px] text-slate-600">
                   Wsp. uwzględniający wpływ obc. długotrwałego (do obliczeń wsporników przyjmuje się
                   0,85)
                 </p>
@@ -212,7 +221,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">
+                <p className="text-[14px] text-slate-600">
                   Wsp. uwzględniający zredukowaną wytrzymałość betonu zarysowanego w modelu
                   rusztowym
                 </p>
@@ -226,7 +235,7 @@ function CorbelResults() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <p className="text-[0.825rem] text-slate-600">Sprawdzenie geometrii</p>
+                <p className="text-[14px] text-slate-600">Sprawdzenie geometrii</p>
                 <Formula
                   tex={
                     showValues
@@ -235,7 +244,7 @@ function CorbelResults() {
                   }
                 />
                 {aFh > 1 ? (
-                  <p className="text-sm font-semibold text-red-600">
+                  <p className="text-[14px] font-semibold text-red-600">
                     ❌ źle dobrana geometria wspornika
                   </p>
                 ) : (
@@ -247,14 +256,14 @@ function CorbelResults() {
 
               {aFh <= 1 && (
                 <div className="flex flex-col gap-1">
-                  <p className="text-[0.825rem] text-slate-600">Warunek nośności</p>
-                  <Formula
-                    tex={String.raw`F_{V,Rd} \ge F_{V,Sd} \Rightarrow \mathbf{${fVRdTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]\quad ${
-                      fVRd >= fVSdNum
-                        ? String.raw`\textcolor{green}{\checkmark}`
-                        : String.raw`\textcolor{red}{\times}`
-                    }`}
-                  />
+                  <p className="text-[14px] text-slate-600">Warunek nośności</p>
+                  <div className="flex items-center gap-2">
+                    <Formula
+                      tex={String.raw`F_{V,Rd} \ge F_{V,Sd} \Rightarrow \mathbf{${fVRdTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]`}
+                    />
+                    <StatusIcon ok={fVRd >= fVSdNum} />
+                    <UtilizationBadge percent={basicUtilization} />
+                  </div>
                 </div>
               )}
             </div>
@@ -265,10 +274,10 @@ function CorbelResults() {
       <Collapsible label="obliczenia zbrojenia głównego" hasWarning={mainRebarWarning}>
         {(showValues) => (
           <>
-            <h2 className="text-lg font-semibold">Zbrojenie główne</h2>
+            <h2 className="text-[14px] font-semibold">Zbrojenie główne</h2>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Wielkości geometryczne</p>
+              <p className="text-[14px] text-slate-600">Wielkości geometryczne</p>
               <div className="flex flex-col gap-1">
                 <Formula
                   tex={
@@ -302,7 +311,7 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Zbrojenie wymagane</p>
+              <p className="text-[14px] text-slate-600">Zbrojenie wymagane</p>
               <Formula
                 tex={
                   showValues
@@ -318,7 +327,7 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Zbrojenie minimalne</p>
+              <p className="text-[14px] text-slate-600">Zbrojenie minimalne</p>
               <Formula
                 tex={
                   showValues
@@ -341,7 +350,7 @@ function CorbelResults() {
 
       <div className="flex flex-col gap-1">
         <RebarSelector
-          label="pręty pionowe"
+          label="pręty główne"
           resultVariable="A_{s11}"
           dotColorClass="bg-[purple]"
           value={{ count: rebar11Count, diameter: rebar11Diameter }}
@@ -360,20 +369,18 @@ function CorbelResults() {
         />
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
         <Formula
-          tex={String.raw`A_{s11} + A_{s12} \ge A_{s,req} \Rightarrow \mathbf{${asProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asReqTex}}\ [\text{mm}^2]\quad ${
-            asProvided >= asReq
-              ? String.raw`\textcolor{green}{\checkmark}`
-              : String.raw`\textcolor{red}{\times}`
-          }`}
+          tex={String.raw`A_{s11} + A_{s12} \ge A_{s,req} \Rightarrow \mathbf{${asProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asReqTex}}\ [\text{mm}^2]`}
         />
+        <StatusIcon ok={asProvided >= asReq} />
+        <UtilizationBadge percent={mainRebarUtilization} />
       </div>
 
       <Collapsible label="obliczenia strzemion poziomych">
         {(showValues) => (
           <>
-            <p className="text-[0.825rem] text-slate-600">Zbrojenie strzemion poziomych</p>
+            <p className="text-[14px] text-slate-600">Zbrojenie strzemion poziomych</p>
             <Formula
               tex={
                 showValues
@@ -400,21 +407,21 @@ function CorbelResults() {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Formula
-          tex={String.raw`A_{s21} \ge A_{sw,h} \Rightarrow \mathbf{${aswHAreaTex}}\ [\text{mm}^2] \ge \mathbf{${aswHTex}}\ [\text{mm}^2]\quad ${
-            aswHArea >= aswH
-              ? String.raw`\textcolor{green}{\checkmark}`
-              : String.raw`\textcolor{red}{\times}`
-          }`}
-        />
-        <p className="text-[0.825rem] text-slate-600">
+        <div className="flex items-center gap-2">
+          <Formula
+            tex={String.raw`A_{s21} \ge A_{sw,h} \Rightarrow \mathbf{${aswHAreaTex}}\ [\text{mm}^2] \ge \mathbf{${aswHTex}}\ [\text{mm}^2]`}
+          />
+          <StatusIcon ok={aswHArea >= aswH} />
+          <UtilizationBadge percent={swUtilization} />
+        </div>
+        <p className="text-[14px] text-slate-600">
           Strzemiona rozmieścić równomiernie na wysokośći wspornika w rozstawach nie większych niż{' '}
           {maxStirrupSpacingCm}cm.
         </p>
       </div>
 
       <div className="flex flex-col gap-1 mt-4">
-        <p className="text-[0.825rem] text-slate-600">
+        <p className="text-[14px] text-slate-600">
           Sprawdzenie zapotrzebowania na strzemiona pionowe
         </p>
         <Formula
@@ -430,7 +437,7 @@ function CorbelResults() {
         {(showValues) => (
           <>
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Współczynnik skali</p>
+              <p className="text-[14px] text-slate-600">Współczynnik skali</p>
               <Formula
                 tex={
                   showValues
@@ -441,7 +448,7 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Współczynnik β</p>
+              <p className="text-[14px] text-slate-600">Współczynnik β</p>
               <Formula
                 tex={
                   showValues
@@ -452,7 +459,7 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">
+              <p className="text-[14px] text-slate-600">
                 Stopień zbrojenia zakotwionego w korpusie
               </p>
               <Formula
@@ -465,7 +472,7 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">
+              <p className="text-[14px] text-slate-600">
                 Nośność elementu bez zbrojenia poprzecznego
               </p>
               <Formula
@@ -478,18 +485,18 @@ function CorbelResults() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Warunek nośności betonu na ścinanie</p>
-              <Formula
-                tex={String.raw`V_{Rd,c} \ge F_{Ed} \Rightarrow \mathbf{${vRdcTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]\quad ${
-                  vRdc >= fVSdNum
-                    ? String.raw`\textcolor{green}{\checkmark}`
-                    : String.raw`\textcolor{red}{\times}`
-                }`}
-              />
+              <p className="text-[14px] text-slate-600">Warunek nośności betonu na ścinanie</p>
+              <div className="flex items-center gap-2">
+                <Formula
+                  tex={String.raw`V_{Rd,c} \ge F_{Ed} \Rightarrow \mathbf{${vRdcTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]`}
+                />
+                <StatusIcon ok={vRdc >= fVSdNum} />
+                <UtilizationBadge percent={vRdcUtilization} />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              <p className="text-[0.825rem] text-slate-600">Wymagane zbrojenie strzemionami pionowymi</p>
+              <p className="text-[14px] text-slate-600">Wymagane zbrojenie strzemionami pionowymi</p>
               <Formula
                 tex={
                   showValues
@@ -501,7 +508,7 @@ function CorbelResults() {
                 tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} \Rightarrow A_{s,link} = \mathbf{${asLinkTex}}\ [\text{mm}^2]`}
               />
               {linkCase1 && (
-                <p className="text-sm text-slate-900">
+                <p className="text-[14px] text-slate-900">
                   Strzemiona pionowe nie wymagane
                 </p>
               )}
@@ -522,14 +529,14 @@ function CorbelResults() {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Formula
-          tex={String.raw`A_{s31} \ge A_{s,link} \Rightarrow \mathbf{${asLinkProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asLinkTex}}\ [\text{mm}^2]\quad ${
-            asLinkArea >= asLink
-              ? String.raw`\textcolor{green}{\checkmark}`
-              : String.raw`\textcolor{red}{\times}`
-          }`}
-        />
-        <p className="text-[0.825rem] text-slate-600">
+        <div className="flex items-center gap-2">
+          <Formula
+            tex={String.raw`A_{s31} \ge A_{s,link} \Rightarrow \mathbf{${asLinkProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asLinkTex}}\ [\text{mm}^2]`}
+          />
+          <StatusIcon ok={asLinkArea >= asLink} />
+          <UtilizationBadge percent={linkUtilization} />
+        </div>
+        <p className="text-[14px] text-slate-600">
           Strzemiona rozmieścić równomiernie na odcinku od lica słupa do krawędzi płytki
           podporowej w rozstawach nie większych niż {maxStirrupSpacingCm}cm.
         </p>
