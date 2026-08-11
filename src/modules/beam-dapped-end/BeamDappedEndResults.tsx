@@ -63,7 +63,6 @@ function BeamDappedEndResults() {
   const upperBound = 0.7 * hNum
   const conditionMet = lKNum <= hKNum && hKNum >= lowerBound && hKNum < upperBound
 
-  const hTex = formatNumberTex(hNum, 0)
   const lowerBoundTex = formatNumberTex(lowerBound, 0)
   const upperBoundTex = formatNumberTex(upperBound, 0)
   const hKTex = formatNumberTex(hKNum, 0)
