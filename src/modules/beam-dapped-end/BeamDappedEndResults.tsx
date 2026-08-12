@@ -177,7 +177,7 @@ function BeamDappedEndResults() {
         )}
       </div>
 
-      <Collapsible label="obliczenia podstawowe">
+      <Collapsible label="obliczenia">
         {(showValues) => (
           <div className="flex flex-col gap-1">
             <div className="flex flex-col gap-1">
@@ -258,7 +258,7 @@ function BeamDappedEndResults() {
             </div>
 
             <div className="mt-4 flex flex-col gap-1">
-              <p className="text-[14px] font-semibold text-slate-600">Zbrojenie poziome</p>
+              <p className="text-[14px] font-semibold text-slate-600">Wymagane zbrojenie poziome</p>
               <Formula
                 tex={
                   showValues
@@ -279,6 +279,13 @@ function BeamDappedEndResults() {
                     ? String.raw`A_{sp} = \max(${asp1Tex};\ ${asp2Tex}) = \mathbf{${aspTex}}\ [\text{mm}^2]`
                     : String.raw`A_{sp} = \max(A_{sp1};\ A_{sp2}) = \mathbf{${aspTex}}\ [\text{mm}^2]`
                 }
+              />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-1">
+              <p className="text-[14px] font-semibold text-slate-600">Wymagane zbrojenie podwieszające</p>
+              <Formula
+                tex={String.raw`A_{swp} = \dfrac{1{,}3 \cdot V_{Ed} + 0{,}3 \cdot H_{Sd}}{f_{yd}} = \dfrac{1{,}3 \cdot ${vEdTex} + 0{,}3 \cdot ${hSdTex}}{${fydKNTex}} = \mathbf{${aswpTex}}\ [\text{mm}^2]`}
               />
             </div>
           </div>
@@ -355,13 +362,6 @@ function BeamDappedEndResults() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col gap-1">
-        <p className="text-[14px] font-semibold text-slate-600">Zbrojenie podwieszające</p>
-        <Formula
-          tex={String.raw`A_{swp} = \dfrac{1{,}3 \cdot V_{Ed} + 0{,}3 \cdot H_{Sd}}{f_{yd}} = \dfrac{1{,}3 \cdot ${vEdTex} + 0{,}3 \cdot ${hSdTex}}{${fydKNTex}} = \mathbf{${aswpTex}}\ [\text{mm}^2]`}
-        />
-      </div>
-
       <div className="flex flex-col gap-1">
         <RebarSelector
           label="pręty podstawowe"
@@ -403,7 +403,7 @@ function BeamDappedEndResults() {
 
       <p className="text-[14px] text-slate-600">
         Zbrojenie "podwieszające" rozmieścić na odcinku 0,2h ({Math.round(0.2 * hNum)}mm) od krawędzi
-        "podcięcia".
+        podcięcia.
       </p>
 
       <p className="text-[14px] text-slate-600">

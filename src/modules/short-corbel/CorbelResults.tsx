@@ -164,7 +164,7 @@ function CorbelResults() {
                   tex={
                     showValues
                       ? String.raw`H_{Sd} = \max(10\ \text{kN};\ 0{,}2 \cdot ${fVSdTex}\ \text{kN}) = \mathbf{${hSdTex}}\ [\text{kN}]`
-                      : String.raw`H_{Sd} = \max(10\ \text{kN};\ 0{,}2 \cdot F_{V,Sd}) = \mathbf{${hSdTex}}\ [\text{kN}]`
+                      : String.raw`H_{Sd} = \max(10\ \text{kN};\ 0{,}2 \cdot V_{Ed}) = \mathbf{${hSdTex}}\ [\text{kN}]`
                   }
                 />
               </div>
@@ -259,7 +259,7 @@ function CorbelResults() {
                   <p className="text-[14px] text-slate-600">Warunek nośności</p>
                   <div className="flex items-center gap-2">
                     <Formula
-                      tex={String.raw`F_{V,Rd} \ge F_{V,Sd} \Rightarrow \mathbf{${fVRdTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]`}
+                      tex={String.raw`F_{V,Rd} \ge V_{Ed} \Rightarrow \mathbf{${fVRdTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]`}
                     />
                     <StatusIcon ok={fVRd >= fVSdNum} />
                     <UtilizationBadge percent={basicUtilization} />
@@ -283,7 +283,7 @@ function CorbelResults() {
                   tex={
                     showValues
                       ? String.raw`a_{1} = ${fVSdTex} / (${fcdKNTex} \cdot 0{,}85 \cdot ${bTex}) = \mathbf{${a1Tex}}\ [\text{mm}]`
-                      : String.raw`a_{1} = F_{V,Sd} / (f_{cd} \cdot \alpha_{cc} \cdot b) = \mathbf{${a1Tex}}\ [\text{mm}]`
+                      : String.raw`a_{1} = V_{Ed} / (f_{cd} \cdot \alpha_{cc} \cdot b) = \mathbf{${a1Tex}}\ [\text{mm}]`
                   }
                 />
                 <Formula
@@ -316,7 +316,7 @@ function CorbelResults() {
                 tex={
                   showValues
                     ? String.raw`A_{s1} = \begin{cases} ${underline(String.raw`(0{,}5 \cdot ${fVSdTex} + ${hSdTex}) / ${fydKNTex}`, case1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, case1)} \\[6pt] ${underline(String.raw`(${fVSdTex} \cdot ${aDistTex}/${zTex} + ${hSdTex} \cdot (${aHTex} + ${zTex})/${zTex}) / ${fydKNTex}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 1{,}0`, case2)} \end{cases}`
-                    : String.raw`A_{s1} = \begin{cases} ${underline(String.raw`(0{,}5 \cdot F_{V,Sd} + H_{Sd}) / f_{yd}`, case1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, case1)} \\[6pt] ${underline(String.raw`(F_{V,Sd} \cdot a/z + H_{Sd} \cdot (a_H + z)/z) / f_{yd}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 1{,}0`, case2)} \end{cases}`
+                    : String.raw`A_{s1} = \begin{cases} ${underline(String.raw`(0{,}5 \cdot V_{Ed} + H_{Sd}) / f_{yd}`, case1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, case1)} \\[6pt] ${underline(String.raw`(V_{Ed} \cdot a/z + H_{Sd} \cdot (a_H + z)/z) / f_{yd}`, case2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 1{,}0`, case2)} \end{cases}`
                 }
               />
               {aFh <= 1 && (
@@ -385,7 +385,7 @@ function CorbelResults() {
               tex={
                 showValues
                   ? String.raw`A_{sw,h} = \begin{cases} ${underline(String.raw`0{,}5 \cdot ${fVSdTex} / ${fydKNTex}`, swCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, swCase1)} \\ ${underline(String.raw`0{,}5 \cdot (${as11AreaTex} + ${as12AreaTex})`, swCase2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 0{,}6`, swCase2)} \\ ${underline(String.raw`0{,}3 \cdot (${as11AreaTex} + ${as12AreaTex})`, swCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}6`, swCase3)} \end{cases}`
-                  : String.raw`A_{sw,h} = \begin{cases} ${underline(String.raw`0{,}5 \cdot F_{V,Sd} / f_{ywd}`, swCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, swCase1)} \\ ${underline(String.raw`0{,}5 \cdot (A_{s11} + A_{s12})`, swCase2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 0{,}6`, swCase2)} \\ ${underline(String.raw`0{,}3 \cdot (A_{s11} + A_{s12})`, swCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}6`, swCase3)} \end{cases}`
+                  : String.raw`A_{sw,h} = \begin{cases} ${underline(String.raw`0{,}5 \cdot V_{Ed} / f_{ywd}`, swCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}3`, swCase1)} \\ ${underline(String.raw`0{,}5 \cdot (A_{s11} + A_{s12})`, swCase2)} & ${underline(String.raw`\text{dla } 0{,}3 < a_F/h \le 0{,}6`, swCase2)} \\ ${underline(String.raw`0{,}3 \cdot (A_{s11} + A_{s12})`, swCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}6`, swCase3)} \end{cases}`
               }
             />
             <Formula
@@ -501,7 +501,7 @@ function CorbelResults() {
                 tex={
                   showValues
                     ? String.raw`A_{s,link} = \begin{cases} ${underline('0', linkCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}5`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot ${fVSdTex} / ${fydKNTex}`, linkCase2)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} < V_{Ed}`, linkCase2)} \\[6pt] ${underline(String.raw`\left(2 \cdot ${aDistTex}/${zTex} - 1\right) / (3 \cdot ${fydKNTex}) \cdot ${fVSdTex}`, linkCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} \ge V_{Ed}`, linkCase3)} \end{cases}`
-                    : String.raw`A_{s,link} = \begin{cases} ${underline('0', linkCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}5`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot F_{Ed} / f_{yd}`, linkCase2)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} < V_{Ed}`, linkCase2)} \\[6pt] ${underline(String.raw`\left(2a/z - 1\right) / (3 \cdot f_{ywd}) \cdot V_{Ed}`, linkCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} \ge V_{Ed}`, linkCase3)} \end{cases}`
+                    : String.raw`A_{s,link} = \begin{cases} ${underline('0', linkCase1)} & ${underline(String.raw`\text{dla } a_F/h \le 0{,}5`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot V_{Ed} / f_{yd}`, linkCase2)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} < V_{Ed}`, linkCase2)} \\[6pt] ${underline(String.raw`\left(2a/z - 1\right) / (3 \cdot f_{ywd}) \cdot V_{Ed}`, linkCase3)} & ${underline(String.raw`\text{dla } a_F/h > 0{,}5 \text{ oraz } V_{Rd,cr} \ge V_{Ed}`, linkCase3)} \end{cases}`
                 }
               />
               <Formula

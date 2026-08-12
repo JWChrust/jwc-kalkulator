@@ -167,7 +167,7 @@ function CorbelInputs() {
         id="f-v-sd"
         label={
           <>
-            F<sub>V,Sd</sub>
+            V<sub>Ed</sub>
           </>
         }
         unit="[kN]"
