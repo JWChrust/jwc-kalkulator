@@ -542,9 +542,9 @@ function CorbelResults() {
         </p>
         <p className="mt-4 text-[14px] text-slate-600">
           Przedstawione zbrojenie to minimalne zbrojenie wynikające z konieczności przeniesienia
-          sił przez wspornik na korpus słupa. Szkic przedstawia jedną z możliwych konfiguracji.
-          Pręty należy uzupełnić o strzemiona wymagane konstrukcyjnie (wymagane np. z konieczności
-          ograniczenia zarysowania) uraz z uwagi na względy montażowe.
+          sił przez wspornik na korpus słupa. Szkic przedstawia tylko jedną z możliwych konfiguracji.
+          Pręty należy uzupełnić o strzemiona wymagane konstrukcyjnie (np. z konieczności
+          ograniczenia zarysowania) oraz z uwagi na względy montażowe.
         </p>
         <p className="text-[14px] text-slate-600">
           W przypadku zastosowania zbrojenia głównego w postaci pętli pionowych strzemiona poziome

@@ -9,6 +9,11 @@ import { formatNumberTex } from '../short-corbel/format'
 import { ALPHA_CC, GAMMA_C, GAMMA_S } from '../short-corbel/calculations'
 import { getFck, getFyk } from '../short-corbel/materials'
 
+/** Underlines a piecewise-formula cell (expression or condition) when its case is the one in effect. */
+function underline(tex: string, active: boolean): string {
+  return active ? `\\underline{${tex}}` : tex
+}
+
 function BeamDappedEndResults() {
   const {
     hDim,
@@ -116,20 +121,6 @@ function BeamDappedEndResults() {
 
   const asProvidedTotalTex = formatNumberTex(asProvidedTotal, 0)
 
-  // A_ssp: additional reinforcement. (V_Ed * H_Sd) isn't dimensionally an area's worth of force —
-  // reads as a typo for V_Ed + H_Sd, matching A_sp2's numerator shape, so summed here instead.
-  const assp = (vEdNum + hSd) / (3 * (fyd / 1000))
-  const asspTex = formatNumberTex(assp, 0)
-
-  // A_s21 — the v2 (diameter-only) picker's provided area, needed outside the component for the
-  // check below it; mirrors RebarSelectorAuto's own internal leg-count logic.
-  const rebar21SingleArea = barArea(rebar21Diameter)
-  const rebar21RawCount = rebar21SingleArea > 0 ? Math.ceil(assp / rebar21SingleArea) : 0
-  const rebar21Legs = 2 * Math.ceil(rebar21RawCount / 2)
-  const as21Area = Math.round(rebar21Legs * rebar21SingleArea)
-  const as21AreaTex = formatNumberTex(as21Area, 0)
-  const finalCheckMet = as21Area > assp
-
   const aswp = (1.3 * vEdNum + 0.3 * hSd) / (fyd / 1000)
   const aswpTex = formatNumberTex(aswp, 0)
 
@@ -149,11 +140,31 @@ function BeamDappedEndResults() {
 
   const asProvidedTotal2Tex = formatNumberTex(asProvidedTotal2, 0)
 
+  // A_s,link — supplementary reinforcement: horizontal loops carry it when a_v/h_k is small
+  // (piggybacking on the already-selected A_s1n total), otherwise dedicated vertical stirrups do.
+  const avHk = hKNum > 0 ? aVNum / hKNum : 0
+  const linkCase1 = avHk <= 0.5
+  const linkCase2 = avHk > 0.5
+  const asLink1 = 0.5 * asProvidedTotal
+  const asLink2 = (0.5 * vEdNum) / (fyd / 1000)
+  const asLink = linkCase1 ? asLink1 : asLink2
+  const avHkTex = formatNumberTex(avHk, 3)
+  const asLinkTex = formatNumberTex(asLink, 0)
+
+  // A_s31 (zbrojenie uzupełniające) — the v2 (diameter-only) picker's provided area; mirrors
+  // RebarSelectorAuto's own internal leg-count logic.
+  const rebarLinkSingleArea = barArea(rebar21Diameter)
+  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
+  const rebarLinkLegs = 2 * Math.ceil(rebarLinkRawCount / 2)
+  const asLinkProvided = Math.round(rebarLinkLegs * rebarLinkSingleArea)
+  const asLinkProvidedTex = formatNumberTex(asLinkProvided, 0)
+  const linkCheckMet = asLinkProvided >= asLink
+
   // Utilization ratios (demand / capacity) shown next to each check.
   const capacityUtilization = fVRdKN > 0 ? (vEdNum / fVRdKN) * 100 : 0
   const spUtilization = asProvidedTotal > 0 ? (asp / asProvidedTotal) * 100 : 0
-  const sspUtilization = as21Area > 0 ? (assp / as21Area) * 100 : 0
   const swpUtilization = asProvidedTotal2 > 0 ? (aswp / asProvidedTotal2) * 100 : 0
+  const linkUtilization = asLinkProvided > 0 ? (asLink / asLinkProvided) * 100 : 0
 
   return (
     <div className="flex flex-col gap-4 text-slate-900">
@@ -288,6 +299,16 @@ function BeamDappedEndResults() {
                 tex={String.raw`A_{swp} = \dfrac{1{,}3 \cdot V_{Ed} + 0{,}3 \cdot H_{Sd}}{f_{yd}} = \dfrac{1{,}3 \cdot ${vEdTex} + 0{,}3 \cdot ${hSdTex}}{${fydKNTex}} = \mathbf{${aswpTex}}\ [\text{mm}^2]`}
               />
             </div>
+
+            <div className="mt-4 flex flex-col gap-1">
+              <p className="text-[14px] font-semibold text-slate-600">Wymagane zbrojenie uzupełniające</p>
+              <Formula
+                tex={String.raw`A_{s,link} = \begin{cases} ${underline(String.raw`0{,}5 \cdot \sum A_{s1n}`, linkCase1)} & ${underline(String.raw`\text{dla } a_v/h_k \le 0{,}5\ \text{(strzemiona poziome)}`, linkCase1)} \\[6pt] ${underline(String.raw`0{,}5 \cdot V_{Ed} / f_{yd}`, linkCase2)} & ${underline(String.raw`\text{dla } a_v/h_k > 0{,}5\ \text{(strzemiona pionowe)}`, linkCase2)} \end{cases}`}
+              />
+              <Formula
+                tex={String.raw`\frac{a_v}{h_k} = \mathbf{${avHkTex}} \Rightarrow A_{s,link} = \mathbf{${asLinkTex}}\ [\text{mm}^2]`}
+              />
+            </div>
           </div>
         )}
       </Collapsible>
@@ -334,38 +355,11 @@ function BeamDappedEndResults() {
         <UtilizationBadge percent={spUtilization} />
       </div>
 
-      <div className="mt-4 flex flex-col gap-4 rounded-md bg-pink-100 p-3">
-        <div className="flex flex-col gap-1">
-          <p className="text-[14px] font-semibold text-slate-600">Zbrojenie dodatkowe</p>
-          <Formula
-            tex={String.raw`A_{ssp} = \dfrac{V_{Ed} + H_{Sd}}{3 \cdot f_{yd}} = \dfrac{${vEdTex} + ${hSdTex}}{3 \cdot ${fydKNTex}} = \mathbf{${asspTex}}\ [\text{mm}^2]`}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <RebarSelectorAuto
-            label="strzemiona pionowe"
-            resultVariable="A_{s21}"
-            requiredArea={assp}
-            dotColorClass="bg-[green]"
-            value={{ diameter: rebar21Diameter }}
-            onChange={({ diameter }) => setRebar21Diameter(diameter)}
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Formula
-            tex={String.raw`A_{s21} > A_{ssp} \Rightarrow \mathbf{${as21AreaTex}}\ [\text{mm}^2] > \mathbf{${asspTex}}\ [\text{mm}^2]`}
-          />
-          <StatusIcon ok={finalCheckMet} />
-          <UtilizationBadge percent={sspUtilization} />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1">
+      <div className="mt-4 flex flex-col gap-1">
+        <p className="text-[14px] font-semibold text-slate-600">Zbrojenie podwieszające</p>
         <RebarSelector
           label="pręty podstawowe"
-          resultVariable="A_{s31}"
+          resultVariable="A_{s21}"
           dotColorClass="bg-[red]"
           value={{ count: rebar31Count, diameter: rebar31Diameter }}
           onChange={({ count, diameter }) => {
@@ -375,7 +369,7 @@ function BeamDappedEndResults() {
         />
         <RebarSelector
           label="pręty drugorzędne"
-          resultVariable="A_{s32}"
+          resultVariable="A_{s22}"
           dotColorClass="bg-[turquoise]"
           value={{ count: rebar32Count, diameter: rebar32Diameter }}
           onChange={({ count, diameter }) => {
@@ -385,7 +379,7 @@ function BeamDappedEndResults() {
         />
         <RebarSelectorAuto
           label="strzemiona podwieszające"
-          resultVariable="A_{s33}"
+          resultVariable="A_{s23}"
           requiredArea={aswp33Required}
           dotColorClass="bg-[yellow]"
           value={{ diameter: rebar33Diameter }}
@@ -395,7 +389,7 @@ function BeamDappedEndResults() {
 
       <div className="flex items-center gap-2">
         <Formula
-          tex={String.raw`\sum A_{s3n} > A_{swp} \Rightarrow \mathbf{${asProvidedTotal2Tex}}\ [\text{mm}^2] > \mathbf{${aswpTex}}\ [\text{mm}^2]`}
+          tex={String.raw`\sum A_{s2n} > A_{swp} \Rightarrow \mathbf{${asProvidedTotal2Tex}}\ [\text{mm}^2] > \mathbf{${aswpTex}}\ [\text{mm}^2]`}
         />
         <StatusIcon ok={totalCheckMet2} />
         <UtilizationBadge percent={swpUtilization} />
@@ -410,6 +404,31 @@ function BeamDappedEndResults() {
         Dla prętów zbrojenia wspornika standardową długość zakotwienia należy przedłużyć poza krawędź
         podcięcia o długość h−d<sub>k</sub> ({Math.round(hNum)}−{Math.round(dK)}={Math.round(hNum - dK)}mm).
       </p>
+
+      <div className="mt-4 flex flex-col gap-1">
+        <p className="text-[14px] font-semibold text-slate-600">Zbrojenie uzupełniające</p>
+        <p className="text-[14px] text-slate-600">
+          {linkCase1
+            ? 'Zbrojenie uzupełniające w postaci strzemion poziomych (wsuwki nad zbrojeniem głównym).'
+            : 'Zbrojenie uzupełniające w postaci strzemion pionowych rozłożonych na odcinku między krawędzią podcięcia i osią podparcia.'}
+        </p>
+        <RebarSelectorAuto
+          label="zbrojenie uzupełniające"
+          resultVariable="A_{s31}"
+          requiredArea={asLink}
+          dotColorClass="bg-[green]"
+          value={{ diameter: rebar21Diameter }}
+          onChange={({ diameter }) => setRebar21Diameter(diameter)}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Formula
+          tex={String.raw`A_{s31} \ge A_{s,link} \Rightarrow \mathbf{${asLinkProvidedTex}}\ [\text{mm}^2] \ge \mathbf{${asLinkTex}}\ [\text{mm}^2]`}
+        />
+        <StatusIcon ok={linkCheckMet} />
+        <UtilizationBadge percent={linkUtilization} />
+      </div>
     </div>
   )
 }
