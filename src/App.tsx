@@ -95,7 +95,7 @@ function App() {
         </div>
       </Provider>
 
-      <footer className="shrink-0 bg-slate-300 px-6 py-2 text-center text-xs text-black">
+      <footer className="shrink-0 border-t border-black bg-slate-300 px-6 py-2 text-center text-xs text-black">
         Autor narzędzia nie ponosi odpowiedzialności za błędy w metodologii oraz obliczeniach. Na
         użytkowniku spoczywa obowiązek sprawdzenia wyników oraz przyjętej procedury wymiarowania.
       </footer>

@@ -428,7 +428,7 @@ function CorbelResults() {
           tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} ${aFh <= 0.5 ? '\\le' : '>'} 0{,}5 \Rightarrow ${
             aFh <= 0.5
               ? String.raw`\textbf{\text{strzemiona pionowe nie są wymagane}}`
-              : String.raw`\textcolor{red}{\textbf{\text{wymagane jest zbrojenie strzemionami pionowymi}}}`
+              : String.raw`\textcolor{red}{\textbf{\text{wymagane zbrojenie strzemionami pionowymi}}}`
           }`}
         />
       </div>
@@ -539,6 +539,18 @@ function CorbelResults() {
         <p className="text-[14px] text-slate-600">
           Strzemiona rozmieścić równomiernie na odcinku od lica słupa do krawędzi płytki
           podporowej w rozstawach nie większych niż {maxStirrupSpacingCm}cm.
+        </p>
+        <p className="mt-4 text-[14px] text-slate-600">
+          Przedstawione zbrojenie to minimalne zbrojenie wynikające z konieczności przeniesienia
+          sił przez wspornik na korpus słupa. Szkic przedstawia jedną z możliwych konfiguracji.
+          Pręty należy uzupełnić o strzemiona wymagane konstrukcyjnie (wymagane np. z konieczności
+          ograniczenia zarysowania) uraz z uwagi na względy montażowe.
+        </p>
+        <p className="text-[14px] text-slate-600">
+          W przypadku zastosowania zbrojenia głównego w postaci pętli pionowych strzemiona poziome
+          wspornika należy umieszczać możliwie blisko górnej powierzchni wspornika z uwagi na
+          niebezpieczeństwo odspojenia betonu w narożu za podkładką. Rozwiązaniem bardziej
+          korzystnym jest pod tym względem zastosowanie petli poziomych (pręty 3D).
         </p>
       </div>
     </div>

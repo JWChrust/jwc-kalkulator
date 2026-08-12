@@ -2,7 +2,7 @@ import { getFck, getFyk } from './materials'
 import { barArea } from '../../components/RebarSelector'
 
 export const ALPHA_CC = 0.85
-export const GAMMA_C = 1.5
+export const GAMMA_C = 1.4
 export const GAMMA_S = 1.15
 
 export interface CorbelGeometryInputs {

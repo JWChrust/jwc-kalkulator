@@ -8,13 +8,14 @@ import {
   type RefObject,
 } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { Edges, OrbitControls } from '@react-three/drei'
 import { Box3, DoubleSide, Vector3 } from 'three'
 import type { Group, OrthographicCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useCorbel } from './CorbelContext'
 import { computeCorbelResult } from './calculations'
 import { hasCorbelInputError } from './validation'
+import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
 
 const SCALE = 0.01 // 1 three.js unit = 100 mm
 const MIN_MM = 1
@@ -23,6 +24,7 @@ const PURPLE_VERTICAL_COVER_MM = 45 // A_s11 bars' top/bottom cover
 const PURPLE_SIDE_COVER_MM = 80 // A_s11 bars' cover from the corbel's sides, in plan
 const BEND_RADIUS_FACTOR = 2 // bend radius = 2 * diameter, applied to every bar shown in the view
 const BLUE_EDGE_MARGIN_MM = 80 // first/last blue stirrup sit 8cm from the corbel's top/bottom edge
+const BLUE_NO_ORANGE_TOP_MARGIN_MM = 60 // when no orange stirrups are present, the first blue stirrup starts 6cm from the top instead
 const STIRRUP_COVER_MM = 30 // A_s12/A_sw,h stirrup cover on all sides
 const ORANGE_TOP_MARGIN_MM = 45 // first orange stirrup sits 4.5cm from the corbel's top edge
 const REBAR_VISUAL_SCALE = 1.6 // true-to-scale bar diameters would be nearly invisible
@@ -344,11 +346,12 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
     Math.max(orangeStartY - i * orangeSpacing, cover),
   )
 
-  // Blue stirrups are spread evenly across the corbel's height: first 8cm from the top edge,
-  // last 8cm from the bottom edge.
+  // Blue stirrups are spread evenly across the corbel's height: first 8cm from the top edge
+  // (or 6cm when there are no orange stirrups to yield space to), last 8cm from the bottom edge.
   const swEdgeMargin = BLUE_EDGE_MARGIN_MM * SCALE
+  const swTopMargin = (orangeCount > 0 ? BLUE_EDGE_MARGIN_MM : BLUE_NO_ORANGE_TOP_MARGIN_MM) * SCALE
   const swRangeBottom = Math.min(swEdgeMargin, h / 2)
-  const swRangeTop = Math.max(h - swEdgeMargin, swRangeBottom)
+  const swRangeTop = Math.max(h - swTopMargin, swRangeBottom)
   const swYPositions = evenlySpaced(swCount, swRangeBottom, swRangeTop)
 
   // A_s31 — green vertical stirrups: 3cm top/bottom cover, sides pulled in by 3cm plus the
@@ -380,6 +383,7 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
           side={DoubleSide}
           depthWrite={false}
         />
+        <Edges color="black" />
       </mesh>
 
       {/* Corbel nib */}
@@ -393,6 +397,7 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
           side={DoubleSide}
           depthWrite={false}
         />
+        <Edges color="black" />
       </mesh>
 
       {/* A_s11 — main tie bars, anchored into the column, nested inside the stirrups */}
@@ -648,6 +653,45 @@ function Corbel3DView() {
   ])
   const effectiveInputs = hasError ? frozenInputs : liveInputs
 
+  const calc = computeCorbelResult({
+    fVSd: Number(effectiveInputs.fVSd) || 0,
+    aF: Number(effectiveInputs.aF) || 0,
+    aH: Number(effectiveInputs.aH) || 0,
+    hDim: Number(effectiveInputs.hDim) || 0,
+    bDim: Number(effectiveInputs.bDim) || 0,
+    concreteClass: effectiveInputs.concreteClass,
+    steelGrade: effectiveInputs.steelGrade,
+    rebar11Count: effectiveInputs.rebar11Count,
+    rebar11Diameter: effectiveInputs.rebar11Diameter,
+    rebar12Diameter: effectiveInputs.rebar12Diameter,
+    rebarSwDiameter: effectiveInputs.rebarSwDiameter,
+    rebar31Diameter: effectiveInputs.rebar31Diameter,
+  })
+
+  const legendItems: Legend3DItem[] = [
+    effectiveInputs.rebar11Count > 0 && {
+      color: 'purple',
+      label: `${effectiveInputs.rebar11Count}⌀${effectiveInputs.rebar11Diameter}`,
+      shape: 'bar' as const,
+    },
+    calc.rebar12Count > 0 && {
+      color: 'darkorange',
+      label: `${calc.rebar12Count}⌀${effectiveInputs.rebar12Diameter}`,
+      shape: 'stirrup' as const,
+    },
+    calc.rebarSwCount > 0 && {
+      color: 'blue',
+      // rebarSwCount is cut *legs*; each closed loop (physical bar) forms 2 legs.
+      label: `${Math.floor(calc.rebarSwCount / 2)}⌀${effectiveInputs.rebarSwDiameter}`,
+      shape: 'stirrup' as const,
+    },
+    calc.rebar31Count > 0 && {
+      color: 'green',
+      label: `${calc.rebar31Count}⌀${effectiveInputs.rebar31Diameter}`,
+      shape: 'stirrup' as const,
+    },
+  ].filter((item): item is Legend3DItem => item !== false)
+
   const applyView = (preset: ViewPreset) => viewControllerRef.current?.fitView(preset)
 
   return (
@@ -682,6 +726,8 @@ function Corbel3DView() {
         <InitialFit viewControllerRef={viewControllerRef} />
         <OrbitControls ref={controlsRef} enableDamping dampingFactor={0.1} />
       </Canvas>
+
+      <Legend3D items={legendItems} />
     </div>
   )
 }

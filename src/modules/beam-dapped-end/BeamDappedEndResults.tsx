@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import Collapsible from '../../components/Collapsible'
 import Formula from '../../components/Formula'
 import StatusIcon from '../../components/StatusIcon'
@@ -7,7 +6,7 @@ import RebarSelector, { barArea } from '../../components/RebarSelector'
 import RebarSelectorAuto from '../../components/RebarSelectorAuto'
 import { useBeamDappedEnd } from './BeamDappedEndContext'
 import { formatNumberTex } from '../short-corbel/format'
-import { GAMMA_C, GAMMA_S } from '../short-corbel/calculations'
+import { ALPHA_CC, GAMMA_C, GAMMA_S } from '../short-corbel/calculations'
 import { getFck, getFyk } from '../short-corbel/materials'
 
 function BeamDappedEndResults() {
@@ -43,13 +42,9 @@ function BeamDappedEndResults() {
     setRebar32Count,
     rebar32Diameter,
     setRebar32Diameter,
-    rebar33Count,
-    setRebar33Count,
     rebar33Diameter,
     setRebar33Diameter,
   } = useBeamDappedEnd()
-
-  const [showApplicabilityValues, setShowApplicabilityValues] = useState(false)
 
   const hNum = Number(hDim) || 0
   const hKNum = Number(hK) || 0
@@ -61,7 +56,7 @@ function BeamDappedEndResults() {
 
   const lowerBound = 0.3 * hNum
   const upperBound = 0.7 * hNum
-  const conditionMet = lKNum <= hKNum && hKNum >= lowerBound && hKNum < upperBound
+  const conditionMet = lKNum <= hKNum && hKNum >= lowerBound && hKNum <= upperBound
 
   const lowerBoundTex = formatNumberTex(lowerBound, 0)
   const upperBoundTex = formatNumberTex(upperBound, 0)
@@ -72,10 +67,14 @@ function BeamDappedEndResults() {
   const vEdTex = formatNumberTex(vEdNum, 0)
 
   const fck = getFck(concreteClass)
-  const fcd = fck / GAMMA_C
+  const fcd = (ALPHA_CC * fck) / GAMMA_C
   // Stress substituted in kN/mm² instead of MPa so the substituted arithmetic (kN, mm) stays
   // dimensionally consistent without a hidden ×1000.
   const fcdKNTex = formatNumberTex(fcd / 1000, 4)
+  const fckTex = formatNumberTex(fck, 0)
+  const fcdTex = formatNumberTex(fcd, 2)
+  const alphaCcTex = formatNumberTex(ALPHA_CC, 2)
+  const gammaCTex = formatNumberTex(GAMMA_C, 2)
 
   const dK = hKNum - aKNum
   const fVRd = 0.28 * fcd * bNum * dK
@@ -131,14 +130,20 @@ function BeamDappedEndResults() {
   const as21AreaTex = formatNumberTex(as21Area, 0)
   const finalCheckMet = as21Area > assp
 
-  // A_swp: same numerator/denominator shape as A_ssp above (V_Ed + H_Sd, not V_Ed * H_Sd, for the
-  // same dimensional reason), for the separate "Zbrojenie podwieszające" bar group below.
-  const aswp = (vEdNum + hSd) / (3 * (fyd / 1000))
+  const aswp = (1.3 * vEdNum + 0.3 * hSd) / (fyd / 1000)
   const aswpTex = formatNumberTex(aswp, 0)
 
   const as31Area = Math.round(rebar31Count * barArea(rebar31Diameter))
   const as32Area = Math.round(rebar32Count * barArea(rebar32Diameter))
-  const as33Area = Math.round(rebar33Count * barArea(rebar33Diameter))
+
+  // A_s33 — the v2 (diameter-only) picker's provided area, sized to cover the remainder of A_swp
+  // not already covered by A_s31 + A_s32; mirrors RebarSelectorAuto's own internal leg-count logic.
+  const aswp33Required = Math.max(aswp - as31Area - as32Area, 0)
+  const rebar33SingleArea = barArea(rebar33Diameter)
+  const rebar33RawCount = rebar33SingleArea > 0 ? Math.ceil(aswp33Required / rebar33SingleArea) : 0
+  const rebar33Legs = 2 * Math.ceil(rebar33RawCount / 2)
+  const as33Area = Math.round(rebar33Legs * rebar33SingleArea)
+
   const asProvidedTotal2 = as31Area + as32Area + as33Area
   const totalCheckMet2 = asProvidedTotal2 > aswp
 
@@ -156,25 +161,15 @@ function BeamDappedEndResults() {
         <p className="text-[14px] text-slate-600">
           Zakres stosowalności zasad dla krótkich wsporników
         </p>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Formula
-              tex={
-                showApplicabilityValues
-                  ? String.raw`${lKTex} \le ${hKTex} \ \text{oraz}\ ${lowerBoundTex} \le ${hKTex} < ${upperBoundTex}`
-                  : String.raw`l_k \le h_k \ \text{oraz}\ 0{,}3h \le h_k < 0{,}7h`
-              }
-            />
-            <StatusIcon ok={conditionMet} />
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowApplicabilityValues((v) => !v)}
-            className="shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-[14px] font-medium text-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
-          >
-            {showApplicabilityValues ? 'Pokaż symbole' : 'Pokaż wartości'}
-          </button>
+        <div className="flex items-center gap-2">
+          <Formula
+            tex={String.raw`l_k \le h_k \ \text{oraz}\ 0{,}3h \le h_k \le 0{,}7h`}
+          />
+          <StatusIcon ok={conditionMet} />
         </div>
+        <Formula
+          tex={String.raw`${lKTex} \le ${hKTex} \ \text{oraz}\ ${lowerBoundTex} \le ${hKTex} \le ${upperBoundTex}`}
+        />
         {!conditionMet && (
           <p className="text-[14px] font-semibold text-red-600">
             Nie można stosować zasad dla krótkich wsporników belek
@@ -192,6 +187,17 @@ function BeamDappedEndResults() {
                   showValues
                     ? String.raw`d_k = ${hKTex} - ${aKTex} = \mathbf{${dKTex}}\ [\text{mm}]`
                     : String.raw`d_k = h_k - a_k = \mathbf{${dKTex}}\ [\text{mm}]`
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <p className="text-[14px] text-slate-600">Obliczeniowa wytrzymałość betonu</p>
+              <Formula
+                tex={
+                  showValues
+                    ? String.raw`f_{cd} = \dfrac{${alphaCcTex} \cdot ${fckTex}}{${gammaCTex}} = \mathbf{${fcdTex}}\ [\text{MPa}]`
+                    : String.raw`f_{cd} = \dfrac{\alpha_{cc} \cdot f_{ck}}{\gamma_c} = \mathbf{${fcdTex}}\ [\text{MPa}]`
                 }
               />
             </div>
@@ -252,7 +258,7 @@ function BeamDappedEndResults() {
             </div>
 
             <div className="mt-4 flex flex-col gap-1">
-              <p className="text-[14px] text-slate-600">Zbrojenie wspornika</p>
+              <p className="text-[14px] font-semibold text-slate-600">Zbrojenie poziome</p>
               <Formula
                 tex={
                   showValues
@@ -280,6 +286,7 @@ function BeamDappedEndResults() {
       </Collapsible>
 
       <div className="flex flex-col gap-1">
+        <p className="text-[14px] font-semibold text-slate-600">Zbrojenie poziome</p>
         <RebarSelector
           label="pręty główne"
           resultVariable="A_{s11}"
@@ -320,36 +327,38 @@ function BeamDappedEndResults() {
         <UtilizationBadge percent={spUtilization} />
       </div>
 
+      <div className="mt-4 flex flex-col gap-4 rounded-md bg-pink-100 p-3">
+        <div className="flex flex-col gap-1">
+          <p className="text-[14px] font-semibold text-slate-600">Zbrojenie dodatkowe</p>
+          <Formula
+            tex={String.raw`A_{ssp} = \dfrac{V_{Ed} + H_{Sd}}{3 \cdot f_{yd}} = \dfrac{${vEdTex} + ${hSdTex}}{3 \cdot ${fydKNTex}} = \mathbf{${asspTex}}\ [\text{mm}^2]`}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <RebarSelectorAuto
+            label="strzemiona pionowe"
+            resultVariable="A_{s21}"
+            requiredArea={assp}
+            dotColorClass="bg-[green]"
+            value={{ diameter: rebar21Diameter }}
+            onChange={({ diameter }) => setRebar21Diameter(diameter)}
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Formula
+            tex={String.raw`A_{s21} > A_{ssp} \Rightarrow \mathbf{${as21AreaTex}}\ [\text{mm}^2] > \mathbf{${asspTex}}\ [\text{mm}^2]`}
+          />
+          <StatusIcon ok={finalCheckMet} />
+          <UtilizationBadge percent={sspUtilization} />
+        </div>
+      </div>
+
       <div className="mt-4 flex flex-col gap-1">
-        <p className="text-[14px] text-slate-600">Zbrojenie dodatkowe</p>
+        <p className="text-[14px] font-semibold text-slate-600">Zbrojenie podwieszające</p>
         <Formula
-          tex={String.raw`A_{ssp} = \dfrac{V_{Ed} + H_{Sd}}{3 \cdot f_{yd}} = \dfrac{${vEdTex} + ${hSdTex}}{3 \cdot ${fydKNTex}} = \mathbf{${asspTex}}\ [\text{mm}^2]`}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <RebarSelectorAuto
-          label="strzemiona podwieszające"
-          resultVariable="A_{s21}"
-          requiredArea={assp}
-          dotColorClass="bg-[green]"
-          value={{ diameter: rebar21Diameter }}
-          onChange={({ diameter }) => setRebar21Diameter(diameter)}
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Formula
-          tex={String.raw`A_{s21} > A_{ssp} \Rightarrow \mathbf{${as21AreaTex}}\ [\text{mm}^2] > \mathbf{${asspTex}}\ [\text{mm}^2]`}
-        />
-        <StatusIcon ok={finalCheckMet} />
-        <UtilizationBadge percent={sspUtilization} />
-      </div>
-
-      <div className="mt-4 flex flex-col gap-1">
-        <p className="text-[14px] text-slate-600">Zbrojenie podwieszające</p>
-        <Formula
-          tex={String.raw`A_{swp} = \dfrac{V_{Ed} + H_{Sd}}{3 \cdot f_{yd}} = \dfrac{${vEdTex} + ${hSdTex}}{3 \cdot ${fydKNTex}} = \mathbf{${aswpTex}}\ [\text{mm}^2]`}
+          tex={String.raw`A_{swp} = \dfrac{1{,}3 \cdot V_{Ed} + 0{,}3 \cdot H_{Sd}}{f_{yd}} = \dfrac{1{,}3 \cdot ${vEdTex} + 0{,}3 \cdot ${hSdTex}}{${fydKNTex}} = \mathbf{${aswpTex}}\ [\text{mm}^2]`}
         />
       </div>
 
@@ -374,15 +383,13 @@ function BeamDappedEndResults() {
             setRebar32Diameter(diameter)
           }}
         />
-        <RebarSelector
-          label="pręty trzeciorzędne"
+        <RebarSelectorAuto
+          label="strzemiona podwieszające"
           resultVariable="A_{s33}"
+          requiredArea={aswp33Required}
           dotColorClass="bg-[yellow]"
-          value={{ count: rebar33Count, diameter: rebar33Diameter }}
-          onChange={({ count, diameter }) => {
-            setRebar33Count(count)
-            setRebar33Diameter(diameter)
-          }}
+          value={{ diameter: rebar33Diameter }}
+          onChange={({ diameter }) => setRebar33Diameter(diameter)}
         />
       </div>
 
@@ -393,6 +400,16 @@ function BeamDappedEndResults() {
         <StatusIcon ok={totalCheckMet2} />
         <UtilizationBadge percent={swpUtilization} />
       </div>
+
+      <p className="text-[14px] text-slate-600">
+        Zbrojenie "podwieszające" rozmieścić na odcinku 0,2h ({Math.round(0.2 * hNum)}mm) od krawędzi
+        "podcięcia".
+      </p>
+
+      <p className="text-[14px] text-slate-600">
+        Dla prętów zbrojenia wspornika standardową długość zakotwienia należy przedłużyć poza krawędź
+        podcięcia o długość h−d<sub>k</sub> ({Math.round(hNum)}−{Math.round(dK)}={Math.round(hNum - dK)}mm).
+      </p>
     </div>
   )
 }
