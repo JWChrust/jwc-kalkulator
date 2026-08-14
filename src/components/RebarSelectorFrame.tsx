@@ -12,6 +12,8 @@ interface RebarSelectorFrameProps {
   widthClass: string
   /** The diameter/count picker(s) rendered between the label and the result readout. */
   children: ReactNode
+  /** Optional content rendered after the result readout, at the far right of the row. */
+  after?: ReactNode
 }
 
 /** Shared visual shell (dot, label, picker slot, result readout) used by every RebarSelector variant. */
@@ -22,6 +24,7 @@ function RebarSelectorFrame({
   providedArea,
   widthClass,
   children,
+  after,
 }: RebarSelectorFrameProps) {
   return (
     <div
@@ -35,6 +38,8 @@ function RebarSelectorFrame({
       <span className="w-44 shrink-0 whitespace-nowrap pl-3">
         <Formula tex={String.raw`${resultVariable} = \mathbf{${providedArea}}\ [\text{mm}^2]`} />
       </span>
+
+      {after}
     </div>
   )
 }

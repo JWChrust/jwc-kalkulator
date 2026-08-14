@@ -668,7 +668,7 @@ function Corbel3DView() {
     rebar31Diameter: effectiveInputs.rebar31Diameter,
   })
 
-  const legendItems: Legend3DItem[] = [
+  const rawLegendItems: (Legend3DItem | false)[] = [
     effectiveInputs.rebar11Count > 0 && {
       color: 'purple',
       label: `${effectiveInputs.rebar11Count}⌀${effectiveInputs.rebar11Diameter}`,
@@ -690,7 +690,10 @@ function Corbel3DView() {
       label: `${calc.rebar31Count}⌀${effectiveInputs.rebar31Diameter}`,
       shape: 'stirrup' as const,
     },
-  ].filter((item): item is Legend3DItem => item !== false)
+  ]
+  const legendItems: Legend3DItem[] = rawLegendItems.filter(
+    (item): item is Legend3DItem => item !== false,
+  )
 
   const applyView = (preset: ViewPreset) => viewControllerRef.current?.fitView(preset)
 

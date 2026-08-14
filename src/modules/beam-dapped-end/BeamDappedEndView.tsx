@@ -16,11 +16,11 @@ import { useBeamDappedEnd } from './BeamDappedEndContext'
 import { barArea } from '../../components/RebarSelector'
 import { GAMMA_S } from '../short-corbel/calculations'
 import { getFyk } from '../short-corbel/materials'
+import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
 
 const SCALE = 0.01 // 1 three.js unit = 100 mm
 const MIN_MM = 1
 const BEAM_LENGTH_MM = 2000 // fixed 2m beam, independent of l_k/geometry inputs
-const FACE_EPS = 0.02 // pulls each colored overlay just outside the solid to avoid z-fighting
 const REBAR_VISUAL_SCALE = 1.6 // true-to-scale bar diameters would be nearly invisible
 const BEND_RADIUS_FACTOR = 2 // bend radius = 2 * diameter, applied to every bar shown in the view
 
@@ -103,22 +103,19 @@ function VerticalStirrupLoop({ x, centerY, rectHeightY, rectWidthZ, radius, colo
 
 interface CornerHangerProps {
   z: number
-  mainLength: number
-  h: number
-  cover: number
+  cornerX: number
+  bottomY: number
+  topY: number
   legExtension: number
   radius: number
   color: string
 }
 
 /**
- * A_s21/A_s22 — U-shaped hanger bent around the dapped-end's reentrant corner: along the bottom
- * face, up the notch's vertical face, along the top face, each offset inward by `cover`.
+ * A_s21/A_s22/A_s12/A_s13 — U-shaped hanger bent around a reentrant corner: along a bottom face,
+ * up a vertical face at `cornerX`, along a top face, each offset inward by the caller's cover.
  */
-function CornerHanger({ z, mainLength, h, cover, legExtension, radius, color }: CornerHangerProps) {
-  const cornerX = mainLength - cover
-  const bottomY = cover
-  const topY = h - cover
+function CornerHanger({ z, cornerX, bottomY, topY, legExtension, radius, color }: CornerHangerProps) {
   const R = Math.max(
     Math.min(radius * BEND_RADIUS_FACTOR * 2, legExtension / 2, (topY - bottomY) / 3),
     radius * 1.01,
@@ -161,79 +158,36 @@ function CornerHanger({ z, mainLength, h, cover, legExtension, radius, color }: 
   )
 }
 
-const FACE_COLORS = {
-  bottom: { label: 'spód (belka)', color: '#e74c3c' },
-  top: { label: 'góra', color: '#3498db' },
-  front: { label: 'przód', color: '#2ecc71' },
-  back: { label: 'tył', color: '#9b59b6' },
-  left: { label: 'koniec lewy', color: '#f1c40f' },
-  right: { label: 'koniec prawy (podcięcie)', color: '#e67e22' },
-  step: { label: 'ścianka podcięcia (pion)', color: '#1abc9c' },
-  notch: { label: 'spód podcięcia', color: '#e91e63' },
-} as const
-
-interface FaceOverlaysProps {
-  mainLength: number
-  cutHeight: number
-  lK_: number
-  h: number
-  hK_: number
-  b: number
-  length: number
-  profile: Shape
+interface EndHangerProps {
+  y: number
+  cornerX: number
+  frontZ: number
+  backZ: number
+  legExtension: number
+  radius: number
+  color: string
 }
 
-/** Flat, unlit, double-sided colored planes coincident with each real face of the beam — purely a
- * reference aid so faces can be identified by color when describing rebar geometry. */
-function FaceOverlays({ mainLength, cutHeight, lK_, h, hK_, b, length, profile }: FaceOverlaysProps) {
+/**
+ * A_s11/A_s31 — horizontal U-shaped hanger wrapping the beam's right end in plan: along the front
+ * face, around the right end, along the back face, each offset inward by the caller's cover.
+ * Reuses CornerHanger's already-verified bend geometry, rotated so its Y-axis bend (which
+ * CornerHanger builds correctly) becomes a Z-axis bend instead — avoids re-deriving fillet
+ * rotations by hand for a second time.
+ */
+function EndHanger({ y, cornerX, frontZ, backZ, legExtension, radius, color }: EndHangerProps) {
   return (
-    <>
-      {/* bottom (main body) */}
-      <mesh position={[mainLength / 2, -FACE_EPS, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[mainLength, b]} />
-        <meshBasicMaterial color={FACE_COLORS.bottom.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* top (full length) */}
-      <mesh position={[length / 2, h + FACE_EPS, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[length, b]} />
-        <meshBasicMaterial color={FACE_COLORS.top.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* front / back (the L-shaped side profile itself) */}
-      <mesh position={[0, 0, b / 2 + FACE_EPS]}>
-        <shapeGeometry args={[profile]} />
-        <meshBasicMaterial color={FACE_COLORS.front.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-      <mesh position={[0, 0, -b / 2 - FACE_EPS]}>
-        <shapeGeometry args={[profile]} />
-        <meshBasicMaterial color={FACE_COLORS.back.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* left end (full height) */}
-      <mesh position={[-FACE_EPS, h / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[b, h]} />
-        <meshBasicMaterial color={FACE_COLORS.left.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* right end (dapped tip, only h_k tall) */}
-      <mesh position={[length + FACE_EPS, cutHeight + hK_ / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[b, hK_]} />
-        <meshBasicMaterial color={FACE_COLORS.right.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* notch riser (vertical face exposed by the cut) */}
-      <mesh position={[mainLength + FACE_EPS, cutHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[b, cutHeight]} />
-        <meshBasicMaterial color={FACE_COLORS.step.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-
-      {/* notch underside (horizontal face exposed by the cut, under the dapped tip) */}
-      <mesh position={[mainLength + lK_ / 2, cutHeight - FACE_EPS, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[lK_, b]} />
-        <meshBasicMaterial color={FACE_COLORS.notch.color} transparent opacity={0.55} side={DoubleSide} />
-      </mesh>
-    </>
+    <group rotation={[Math.PI / 2, 0, 0]}>
+      <CornerHanger
+        z={-y}
+        cornerX={cornerX}
+        bottomY={backZ}
+        topY={frontZ}
+        legExtension={legExtension}
+        radius={radius}
+        color={color}
+      />
+    </group>
   )
 }
 
@@ -243,13 +197,22 @@ function BeamScene() {
     hK,
     lK,
     aK,
+    aV,
     bDim,
     vEd,
     steelGrade,
+    rebar11Count,
+    rebar11Diameter,
+    rebar12Count,
+    rebar12Diameter,
+    rebar13Count,
+    rebar13Diameter,
+    rebar21Diameter,
     rebar31Count,
     rebar31Diameter,
     rebar32Count,
     rebar32Diameter,
+    rebar33Count,
     rebar33Diameter,
   } = useBeamDappedEnd()
 
@@ -267,18 +230,11 @@ function BeamScene() {
   // d_k in mm (unscaled), used for the A_s21/A_s22 leg-extension length below.
   const dKMm = (Number(hK) || 0) - (Number(aK) || 0)
 
-  // A_s23's loop count — mirrors BeamDappedEndResults.tsx's own A_swp / A_s23 calculation chain.
+  // A_s23 — manually picked (v1, onlyEven); its count is a leg count, 2 legs = 1 closed loop.
   const vEdNum = Number(vEd) || 0
-  const hSd = 0.2 * vEdNum
   const fyk = getFyk(steelGrade)
   const fyd = fyk / GAMMA_S
-  const aswp = (1.3 * vEdNum + 0.3 * hSd) / (fyd / 1000)
-  const as21Area = Math.round(rebar31Count * barArea(rebar31Diameter))
-  const as22Area = Math.round(rebar32Count * barArea(rebar32Diameter))
-  const aswp23Required = Math.max(aswp - as21Area - as22Area, 0)
-  const rebar33SingleArea = barArea(rebar33Diameter)
-  const rebar33RawCount = rebar33SingleArea > 0 ? Math.ceil(aswp23Required / rebar33SingleArea) : 0
-  const as23Count = Math.ceil(rebar33RawCount / 2) // number of closed loops (2 legs each)
+  const as23Count = Math.floor(rebar33Count / 2)
 
   // A_s21/A_s22 — U-shaped hangers wrapping bottom -> notch face -> top, evenly spread across the
   // width with the given front/back cover; A_s23 — full-height stirrups near the notch edge.
@@ -293,7 +249,7 @@ function BeamScene() {
   const barRadius21 = (rebar31Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
 
   const cover22 = (35 + 0.5 * rebar32Diameter) * SCALE
-  const margin22 = 85 * SCALE
+  const margin22 = 100 * SCALE
   const halfSpanZ22 = Math.max(b / 2 - margin22, 0)
   const z22Positions = evenlySpaced(rebar32Count, -halfSpanZ22, halfSpanZ22)
   const legExtension22 = Math.min(
@@ -311,6 +267,88 @@ function BeamScene() {
   const x23Positions = Array.from({ length: as23Count }, (_, i) => firstStirrup23X - i * stirrup23Spacing).filter(
     (x) => x > 0,
   )
+
+  // A_s,link's physical bar count — mirrors BeamDappedEndResults.tsx's own A_s,link chain. Only
+  // the horizontal ("strzemiona poziome") case has a defined geometry here.
+  const aVNum = Number(aV) || 0
+  const hKNum = Number(hK) || 0
+  const avHk = hKNum > 0 ? aVNum / hKNum : 0
+  const linkCase1 = avHk <= 0.5
+  const linkCase2 = !linkCase1
+  const as11ProvidedArea = Math.round(rebar11Count * barArea(rebar11Diameter))
+  const as12ProvidedArea = Math.round(rebar12Count * barArea(rebar12Diameter))
+  const as13ProvidedArea = Math.round(rebar13Count * barArea(rebar13Diameter))
+  const asLink1 = 0.5 * (as11ProvidedArea + as12ProvidedArea + as13ProvidedArea)
+  const asLink2 = (0.5 * vEdNum) / (fyd / 1000)
+  const asLink = linkCase1 ? asLink1 : asLink2
+  const rebarLinkSingleArea = barArea(rebar21Diameter)
+  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
+  const rebarLinkLegs = 2 * Math.ceil(rebarLinkRawCount / 2) // "N-cięte" shown in the v2 picker
+  const count31 = rebarLinkLegs / 2 // v2 selector: bars drawn = cuts / 2
+
+  // A_s11 — horizontal U-inserts wrapping the right end in plan, stacked from just above the
+  // notch underside; A_s31 continues the same stack (30mm gap) up to a 50mm top cover.
+  const cover11FrontBack = (35 + 0.5 * rebar11Diameter) * SCALE
+  const cover11End = (25 + 0.5 * rebar11Diameter) * SCALE
+  const corner11X = length - cover11End
+  const front11Z = b / 2 - cover11FrontBack
+  const back11Z = -b / 2 + cover11FrontBack
+
+  const cover31FrontBack = (35 + 0.5 * rebar21Diameter) * SCALE
+  const cover31End = (25 + 0.5 * rebar21Diameter) * SCALE
+  const corner31X = length - cover31End
+  const front31Z = b / 2 - cover31FrontBack
+  const back31Z = -b / 2 + cover31FrontBack
+
+  const legExtensionEnd = (diameter: number) =>
+    Math.max(((Number(hDim) || 0) - dKMm + (Number(hK) || 0) + 50 * diameter) * SCALE, 0)
+
+  // A_s11 is onlyEven (count is picked in pairs), so the number of bars actually drawn is half
+  // the selected count.
+  const bars11Count = Math.floor(rebar11Count / 2)
+  const y11Base = cutHeight + 50 * SCALE
+  const y11Step = (rebar11Diameter + 3) * SCALE
+  const y11Positions = Array.from({ length: bars11Count }, (_, i) => y11Base + i * y11Step)
+  const lastY11 = bars11Count > 0 ? y11Positions[bars11Count - 1] : null
+
+  const y31First = (lastY11 ?? cutHeight) + (lastY11 !== null ? 30 * SCALE : 50 * SCALE)
+  const y31Top = h - 50 * SCALE
+  const y31Positions =
+    count31 <= 0
+      ? []
+      : count31 === 1
+        ? [y31First]
+        : Array.from({ length: count31 }, (_, i) => y31First + (i * (y31Top - y31First)) / (count31 - 1))
+
+  // A_s31 (zbrojenie uzupełniające, pionowe case) — stirrups within the dapped tip, reaching down
+  // to the notch underside (not the full beam depth): first at the line where the cross-section
+  // changes (x=mainLength), last (a_v-20mm) further toward the right end.
+  const stirrup31Cover = (25 + 0.5 * rebar21Diameter) * SCALE
+  const barRadius31 = (rebar21Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
+  const stirrup31RectHeightY = Math.max(hK_ - 2 * stirrup31Cover, stirrup31Cover)
+  const stirrup31RectWidthZ = Math.max(b - 2 * stirrup31Cover, stirrup31Cover)
+  const stirrup31CenterY = cutHeight + hK_ / 2
+  const x31First = mainLength
+  const x31Last = mainLength + Math.max(aVNum - 20, 0) * SCALE
+  const x31Positions =
+    count31 <= 0
+      ? []
+      : count31 === 1
+        ? [x31First]
+        : Array.from({ length: count31 }, (_, i) => x31First + (i * (x31Last - x31First)) / (count31 - 1))
+
+  // A_s12/A_s13 — vertical U-inserts wrapping the right end: notch underside -> right end -> top.
+  const cover12 = (35 + 0.5 * rebar12Diameter) * SCALE
+  const margin12 = 70 * SCALE
+  const halfSpanZ12 = Math.max(b / 2 - margin12, 0)
+  const z12Positions = evenlySpaced(rebar12Count, -halfSpanZ12, halfSpanZ12)
+  const barRadius12 = (rebar12Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
+
+  const cover13 = (35 + 0.5 * rebar13Diameter) * SCALE
+  const margin13 = 100 * SCALE
+  const halfSpanZ13 = Math.max(b / 2 - margin13, 0)
+  const z13Positions = evenlySpaced(rebar13Count, -halfSpanZ13, halfSpanZ13)
+  const barRadius13 = (rebar13Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
 
   // Side-view outline of the beam, dapped at one end: full height h up to mainLength, then
   // stepped down to height h_k over the remaining l_k. Extruded once along the width (b) so the
@@ -346,25 +384,14 @@ function BeamScene() {
         <Edges color="black" />
       </mesh>
 
-      <FaceOverlays
-        mainLength={mainLength}
-        cutHeight={cutHeight}
-        lK_={lK_}
-        h={h}
-        hK_={hK_}
-        b={b}
-        length={length}
-        profile={profile}
-      />
-
       {/* A_s21 — red corner hangers */}
       {z21Positions.map((z, i) => (
         <CornerHanger
           key={i}
           z={z}
-          mainLength={mainLength}
-          h={h}
-          cover={cover21}
+          cornerX={mainLength - cover21}
+          bottomY={cover21}
+          topY={h - cover21}
           legExtension={legExtension21}
           radius={barRadius21}
           color="red"
@@ -376,16 +403,16 @@ function BeamScene() {
         <CornerHanger
           key={i}
           z={z}
-          mainLength={mainLength}
-          h={h}
-          cover={cover22}
+          cornerX={mainLength - cover22}
+          bottomY={cover22}
+          topY={h - cover22}
           legExtension={legExtension22}
           radius={barRadius22}
           color="turquoise"
         />
       ))}
 
-      {/* A_s23 — yellow full-height stirrups, starting 30mm from the notch edge, every 20mm */}
+      {/* A_s23 — yellow full-height stirrups, starting 50mm from the notch edge, every 20mm */}
       {x23Positions.map((x, i) => (
         <VerticalStirrupLoop
           key={i}
@@ -397,6 +424,79 @@ function BeamScene() {
           color="yellow"
         />
       ))}
+
+      {/* A_s11 — purple horizontal U-inserts wrapping the right end, stacked from the notch underside */}
+      {y11Positions.map((y, i) => (
+        <EndHanger
+          key={i}
+          y={y}
+          cornerX={corner11X}
+          frontZ={front11Z}
+          backZ={back11Z}
+          legExtension={legExtensionEnd(rebar11Diameter)}
+          radius={(rebar11Diameter / 2) * SCALE * REBAR_VISUAL_SCALE}
+          color="purple"
+        />
+      ))}
+
+      {/* A_s12 — dark orange vertical U-inserts wrapping the right end */}
+      {z12Positions.map((z, i) => (
+        <CornerHanger
+          key={i}
+          z={z}
+          cornerX={length - cover12}
+          bottomY={cutHeight + cover12}
+          topY={h - cover12}
+          legExtension={legExtensionEnd(rebar12Diameter)}
+          radius={barRadius12}
+          color="darkorange"
+        />
+      ))}
+
+      {/* A_s13 — blue vertical U-inserts wrapping the right end */}
+      {z13Positions.map((z, i) => (
+        <CornerHanger
+          key={i}
+          z={z}
+          cornerX={length - cover13}
+          bottomY={cutHeight + cover13}
+          topY={h - cover13}
+          legExtension={legExtensionEnd(rebar13Diameter)}
+          radius={barRadius13}
+          color="blue"
+        />
+      ))}
+
+      {/* A_s31 (zbrojenie uzupełniające, poziome case) — green horizontal U-inserts continuing
+          the A_s11 stack */}
+      {linkCase1 &&
+        y31Positions.map((y, i) => (
+          <EndHanger
+            key={i}
+            y={y}
+            cornerX={corner31X}
+            frontZ={front31Z}
+            backZ={back31Z}
+            legExtension={legExtensionEnd(rebar21Diameter)}
+            radius={(rebar21Diameter / 2) * SCALE * REBAR_VISUAL_SCALE}
+            color="green"
+          />
+        ))}
+
+      {/* A_s31 (zbrojenie uzupełniające, pionowe case) — green stirrups within the dapped tip,
+          from the cross-section change line toward the right end */}
+      {linkCase2 &&
+        x31Positions.map((x, i) => (
+          <VerticalStirrupLoop
+            key={i}
+            x={x}
+            centerY={stirrup31CenterY}
+            rectHeightY={stirrup31RectHeightY}
+            rectWidthZ={stirrup31RectWidthZ}
+            radius={barRadius31}
+            color="green"
+          />
+        ))}
     </>
   )
 }
@@ -542,6 +642,72 @@ function BeamDappedEndView() {
   const sceneRef = useRef<Group>(null)
   const viewControllerRef = useRef<ViewControllerHandle>(null)
 
+  const {
+    hK,
+    aV,
+    vEd,
+    steelGrade,
+    rebar11Count,
+    rebar11Diameter,
+    rebar12Count,
+    rebar12Diameter,
+    rebar13Count,
+    rebar13Diameter,
+    rebar21Diameter,
+    rebar31Count,
+    rebar31Diameter,
+    rebar32Count,
+    rebar32Diameter,
+    rebar33Count,
+    rebar33Diameter,
+  } = useBeamDappedEnd()
+
+  // Duplicates BeamScene's own A_s,link chain (Legend3D lives outside the Canvas, as plain HTML).
+  const vEdNum = Number(vEd) || 0
+  const fyk = getFyk(steelGrade)
+  const fyd = fyk / GAMMA_S
+  const aVNum = Number(aV) || 0
+  const hKNum = Number(hK) || 0
+  const avHk = hKNum > 0 ? aVNum / hKNum : 0
+  const linkCase1 = avHk <= 0.5
+  const as11ProvidedArea = Math.round(rebar11Count * barArea(rebar11Diameter))
+  const as12ProvidedArea = Math.round(rebar12Count * barArea(rebar12Diameter))
+  const as13ProvidedArea = Math.round(rebar13Count * barArea(rebar13Diameter))
+  const asLink1 = 0.5 * (as11ProvidedArea + as12ProvidedArea + as13ProvidedArea)
+  const asLink2 = (0.5 * vEdNum) / (fyd / 1000)
+  const asLink = linkCase1 ? asLink1 : asLink2
+  const rebarLinkSingleArea = barArea(rebar21Diameter)
+  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
+  const count31 = Math.ceil(rebarLinkRawCount / 2) // physical bars/stirrups drawn = cuts / 2
+
+  const bars11Count = Math.floor(rebar11Count / 2)
+  const as23Count = Math.floor(rebar33Count / 2)
+
+  const rawLegendItems: (Legend3DItem | false)[] = [
+    bars11Count > 0 && { color: 'purple', label: `${bars11Count}⌀${rebar11Diameter}`, shape: 'u' as const },
+    rebar12Count > 0 && {
+      color: 'darkorange',
+      label: `${rebar12Count}⌀${rebar12Diameter}`,
+      shape: 'u' as const,
+    },
+    rebar13Count > 0 && { color: 'blue', label: `${rebar13Count}⌀${rebar13Diameter}`, shape: 'u' as const },
+    rebar31Count > 0 && { color: 'red', label: `${rebar31Count}⌀${rebar31Diameter}`, shape: 'u' as const },
+    rebar32Count > 0 && {
+      color: 'turquoise',
+      label: `${rebar32Count}⌀${rebar32Diameter}`,
+      shape: 'u' as const,
+    },
+    as23Count > 0 && { color: 'yellow', label: `${as23Count}⌀${rebar33Diameter}`, shape: 'stirrup' as const },
+    count31 > 0 && {
+      color: 'green',
+      label: `${count31}⌀${rebar21Diameter}`,
+      shape: linkCase1 ? ('u' as const) : ('stirrup' as const),
+    },
+  ]
+  const legendItems: Legend3DItem[] = rawLegendItems.filter(
+    (item): item is Legend3DItem => item !== false,
+  )
+
   const applyView = (preset: ViewPreset) => viewControllerRef.current?.fitView(preset)
 
   return (
@@ -569,14 +735,7 @@ function BeamDappedEndView() {
         <OrbitControls ref={controlsRef} enableDamping dampingFactor={0.1} />
       </Canvas>
 
-      <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1 rounded-md border border-slate-300 bg-white/90 px-2 py-1.5">
-        {Object.values(FACE_COLORS).map(({ label, color }) => (
-          <div key={label} className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-            <span className="text-[14px] text-slate-700">{label}</span>
-          </div>
-        ))}
-      </div>
+      <Legend3D items={legendItems} />
     </div>
   )
 }

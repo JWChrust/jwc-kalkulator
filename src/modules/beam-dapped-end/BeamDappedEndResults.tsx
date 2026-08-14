@@ -47,6 +47,8 @@ function BeamDappedEndResults() {
     setRebar32Count,
     rebar32Diameter,
     setRebar32Diameter,
+    rebar33Count,
+    setRebar33Count,
     rebar33Diameter,
     setRebar33Diameter,
   } = useBeamDappedEnd()
@@ -127,13 +129,9 @@ function BeamDappedEndResults() {
   const as31Area = Math.round(rebar31Count * barArea(rebar31Diameter))
   const as32Area = Math.round(rebar32Count * barArea(rebar32Diameter))
 
-  // A_s33 — the v2 (diameter-only) picker's provided area, sized to cover the remainder of A_swp
-  // not already covered by A_s31 + A_s32; mirrors RebarSelectorAuto's own internal leg-count logic.
-  const aswp33Required = Math.max(aswp - as31Area - as32Area, 0)
-  const rebar33SingleArea = barArea(rebar33Diameter)
-  const rebar33RawCount = rebar33SingleArea > 0 ? Math.ceil(aswp33Required / rebar33SingleArea) : 0
-  const rebar33Legs = 2 * Math.ceil(rebar33RawCount / 2)
-  const as33Area = Math.round(rebar33Legs * rebar33SingleArea)
+  // A_s33 — the picker's own count is a leg count (2 legs = 1 closed stirrup loop), enforced
+  // even via onlyEven.
+  const as33Area = Math.round(rebar33Count * barArea(rebar33Diameter))
 
   const asProvidedTotal2 = as31Area + as32Area + as33Area
   const totalCheckMet2 = asProvidedTotal2 > aswp
@@ -324,6 +322,7 @@ function BeamDappedEndResults() {
             setRebar11Count(count)
             setRebar11Diameter(diameter)
           }}
+          onlyEven
         />
         <RebarSelector
           label="pręty drugorzędne"
@@ -377,13 +376,16 @@ function BeamDappedEndResults() {
             setRebar32Diameter(diameter)
           }}
         />
-        <RebarSelectorAuto
+        <RebarSelector
           label="strzemiona podwieszające"
           resultVariable="A_{s23}"
-          requiredArea={aswp33Required}
           dotColorClass="bg-[yellow]"
-          value={{ diameter: rebar33Diameter }}
-          onChange={({ diameter }) => setRebar33Diameter(diameter)}
+          value={{ count: rebar33Count, diameter: rebar33Diameter }}
+          onChange={({ count, diameter }) => {
+            setRebar33Count(count)
+            setRebar33Diameter(diameter)
+          }}
+          onlyEven
         />
       </div>
 

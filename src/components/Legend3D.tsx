@@ -1,7 +1,7 @@
 export interface Legend3DItem {
   color: string
   label: string
-  shape: 'bar' | 'stirrup'
+  shape: 'bar' | 'stirrup' | 'u'
 }
 
 function BarIcon({ color }: { color: string }) {
@@ -27,6 +27,21 @@ function StirrupIcon({ color }: { color: string }) {
   )
 }
 
+function UBarIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0">
+      <path
+        d="M7 4 V14 A5 5 0 0 0 17 14 V4"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 interface Legend3DProps {
   items: Legend3DItem[]
 }
@@ -43,7 +58,13 @@ function Legend3D({ items }: Legend3DProps) {
             style={{ backgroundColor: item.color }}
           />
           <span className="w-12 shrink-0 text-[14px] text-slate-700">{item.label}</span>
-          {item.shape === 'bar' ? <BarIcon color={item.color} /> : <StirrupIcon color={item.color} />}
+          {item.shape === 'bar' ? (
+            <BarIcon color={item.color} />
+          ) : item.shape === 'u' ? (
+            <UBarIcon color={item.color} />
+          ) : (
+            <StirrupIcon color={item.color} />
+          )}
         </div>
       ))}
     </div>
