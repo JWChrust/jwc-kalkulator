@@ -40,7 +40,7 @@ function NumericField({
   error = false,
 }: NumericFieldProps) {
   const handleChange = (raw: string) => {
-    onChange(allowNegative ? raw : raw.replace(/-/g, ''))
+    onChange(raw.replace(/[^0-9]/g, ''))
   }
 
   const handleBlur = () => {
@@ -55,18 +55,18 @@ function NumericField({
     <div className="flex items-center gap-2">
       <label
         htmlFor={id}
-        className={`shrink-0 whitespace-nowrap text-[14px] text-slate-700 ${labelClassName}`}
+        className={`shrink-0 whitespace-nowrap text-right text-[14px] text-slate-700 ${labelClassName}`}
       >
         {label}
       </label>
       <input
         id={id}
         type="text"
-        inputMode="decimal"
+        inputMode="numeric"
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         onBlur={handleBlur}
-        className={`w-16 shrink-0 rounded-md border bg-[lemonchiffon] px-2 py-1 text-right text-slate-900 focus:outline-none ${
+        className={`w-14 shrink-0 rounded-md border bg-[lemonchiffon] px-2 py-1 text-right text-[14px] text-slate-900 focus:outline-none ${
           error ? 'border-red-500 focus:border-red-500' : 'border-slate-300 focus:border-indigo-500'
         }`}
       />

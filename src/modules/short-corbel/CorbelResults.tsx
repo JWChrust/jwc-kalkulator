@@ -3,7 +3,7 @@ import Formula from '../../components/Formula'
 import StatusIcon from '../../components/StatusIcon'
 import UtilizationBadge from '../../components/UtilizationBadge'
 import RebarSelector from '../../components/RebarSelector'
-import RebarSelectorAuto from '../../components/RebarSelectorAuto'
+import SelektorV3 from '../../components/SelektorV3'
 import { computeCorbelResult, GAMMA_C, GAMMA_S } from './calculations'
 import { useCorbel } from './CorbelContext'
 import { formatNumberTex } from './format'
@@ -26,10 +26,16 @@ function CorbelResults() {
     setRebar11Count,
     rebar11Diameter,
     setRebar11Diameter,
+    rebar12Count,
+    setRebar12Count,
     rebar12Diameter,
     setRebar12Diameter,
+    rebarSwCount,
+    setRebarSwCount,
     rebarSwDiameter,
     setRebarSwDiameter,
+    rebar31Count,
+    setRebar31Count,
     rebar31Diameter,
     setRebar31Diameter,
   } = useCorbel()
@@ -50,8 +56,11 @@ function CorbelResults() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar12Count,
     rebar12Diameter,
+    rebarSwCount,
     rebarSwDiameter,
+    rebar31Count,
     rebar31Diameter,
   })
   const {
@@ -358,14 +367,21 @@ function CorbelResults() {
             setRebar11Count(count)
             setRebar11Diameter(diameter)
           }}
+          initialPhase={1}
+          disabledPhases={[0]}
         />
-        <RebarSelectorAuto
+        <SelektorV3
           label="pętle poziome"
           resultVariable="A_{s12}"
           requiredArea={as12RequiredArea}
           dotColorClass="bg-[darkorange]"
-          value={{ diameter: rebar12Diameter }}
-          onChange={({ diameter }) => setRebar12Diameter(diameter)}
+          value={{ count: rebar12Count, diameter: rebar12Diameter }}
+          onChange={({ count, diameter }) => {
+            setRebar12Count(count)
+            setRebar12Diameter(diameter)
+          }}
+          initialPhase={1}
+          disabledPhases={[0]}
         />
       </div>
 
@@ -396,13 +412,18 @@ function CorbelResults() {
       </Collapsible>
 
       <div className="flex flex-col gap-1">
-        <RebarSelectorAuto
+        <SelektorV3
           label="strzemiona poziome"
           resultVariable="A_{s21}"
           requiredArea={aswH}
           dotColorClass="bg-[blue]"
-          value={{ diameter: rebarSwDiameter }}
-          onChange={({ diameter }) => setRebarSwDiameter(diameter)}
+          value={{ count: rebarSwCount, diameter: rebarSwDiameter }}
+          onChange={({ count, diameter }) => {
+            setRebarSwCount(count)
+            setRebarSwDiameter(diameter)
+          }}
+          initialPhase={1}
+          disabledPhases={[0]}
         />
       </div>
 
@@ -518,13 +539,18 @@ function CorbelResults() {
       </Collapsible>
 
       <div className="flex flex-col gap-1">
-        <RebarSelectorAuto
+        <SelektorV3
           label="strzemiona pionowe"
           resultVariable="A_{s31}"
           requiredArea={asLink}
           dotColorClass="bg-[green]"
-          value={{ diameter: rebar31Diameter }}
-          onChange={({ diameter }) => setRebar31Diameter(diameter)}
+          value={{ count: rebar31Count, diameter: rebar31Diameter }}
+          onChange={({ count, diameter }) => {
+            setRebar31Count(count)
+            setRebar31Diameter(diameter)
+          }}
+          initialPhase={1}
+          disabledPhases={[0]}
         />
       </div>
 

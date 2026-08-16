@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useBeamDappedEnd } from './BeamDappedEndContext'
 import { roundTo1 } from '../short-corbel/format'
 import { CONCRETE_CLASSES, STEEL_GRADES } from '../short-corbel/materials'
+import { isTooLarge } from '../short-corbel/validation'
 import PresetSelector from '../../components/PresetSelector'
 import beamCorbelsImg from '../assets/beam-corbels-1.png'
 
@@ -41,7 +42,7 @@ function NumericField({
   error = false,
 }: NumericFieldProps) {
   const handleChange = (raw: string) => {
-    onChange(allowNegative ? raw : raw.replace(/-/g, ''))
+    onChange(raw.replace(/[^0-9]/g, ''))
   }
 
   const handleBlur = () => {
@@ -56,18 +57,18 @@ function NumericField({
     <div className="flex items-center gap-2">
       <label
         htmlFor={id}
-        className={`shrink-0 whitespace-nowrap text-[14px] text-slate-700 ${labelClassName}`}
+        className={`shrink-0 whitespace-nowrap text-right text-[14px] text-slate-700 ${labelClassName}`}
       >
         {label}
       </label>
       <input
         id={id}
         type="text"
-        inputMode="decimal"
+        inputMode="numeric"
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         onBlur={handleBlur}
-        className={`w-16 shrink-0 rounded-md border bg-[lemonchiffon] px-2 py-1 text-right text-slate-900 focus:outline-none ${
+        className={`w-14 shrink-0 rounded-md border bg-[lemonchiffon] px-2 py-1 text-right text-[14px] text-slate-900 focus:outline-none ${
           error ? 'border-red-500 focus:border-red-500' : 'border-slate-300 focus:border-indigo-500'
         }`}
       />
@@ -97,6 +98,9 @@ function BeamDappedEndInputs() {
     lK,
     setLK,
   } = useBeamDappedEnd()
+
+  const anyTooLarge =
+    isTooLarge(aV) || isTooLarge(aK) || isTooLarge(hDim) || isTooLarge(hK) || isTooLarge(bDim) || isTooLarge(lK)
 
   const applyPreset = (values: BeamDappedEndPresetValues) => {
     setConcreteClass(values.concreteClass)
@@ -185,6 +189,7 @@ function BeamDappedEndInputs() {
               value={aV}
               onChange={setAV}
               allowNegative={false}
+              error={isTooLarge(aV)}
             />
             <NumericField
               id="a-k"
@@ -198,6 +203,7 @@ function BeamDappedEndInputs() {
               value={aK}
               onChange={setAK}
               allowNegative={false}
+              error={isTooLarge(aK)}
             />
             <NumericField
               id="b-dim"
@@ -207,6 +213,7 @@ function BeamDappedEndInputs() {
               value={bDim}
               onChange={setBDim}
               allowNegative={false}
+              error={isTooLarge(bDim)}
             />
           </div>
           <div className="flex flex-col gap-3">
@@ -218,6 +225,7 @@ function BeamDappedEndInputs() {
               value={hDim}
               onChange={setHDim}
               allowNegative={false}
+              error={isTooLarge(hDim)}
             />
             <NumericField
               id="h-k"
@@ -231,6 +239,7 @@ function BeamDappedEndInputs() {
               value={hK}
               onChange={setHK}
               allowNegative={false}
+              error={isTooLarge(hK)}
             />
             <NumericField
               id="l-k"
@@ -244,10 +253,15 @@ function BeamDappedEndInputs() {
               value={lK}
               onChange={setLK}
               allowNegative={false}
+              error={isTooLarge(lK)}
             />
           </div>
         </div>
       </fieldset>
+
+      {anyTooLarge && (
+        <p className="text-[14px] text-red-600">Wymiary geometrii nie mogą przekraczać 1000mm</p>
+      )}
 
       <img
         src={beamCorbelsImg}

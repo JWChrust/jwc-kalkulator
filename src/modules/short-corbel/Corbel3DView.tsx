@@ -13,7 +13,6 @@ import { Box3, DoubleSide, Vector3 } from 'three'
 import type { Group, OrthographicCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useCorbel } from './CorbelContext'
-import { computeCorbelResult } from './calculations'
 import { hasCorbelInputError } from './validation'
 import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
 
@@ -252,41 +251,28 @@ export interface CorbelSceneInputs {
   steelGrade: string
   rebar11Count: number
   rebar11Diameter: number
+  rebar12Count: number
   rebar12Diameter: number
+  rebarSwCount: number
   rebarSwDiameter: number
+  rebar31Count: number
   rebar31Diameter: number
 }
 
 function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
   const {
-    fVSd,
     aF,
-    aH,
     hDim,
     bDim,
-    concreteClass,
-    steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar12Count,
     rebar12Diameter,
+    rebarSwCount,
     rebarSwDiameter,
+    rebar31Count,
     rebar31Diameter,
   } = inputs
-
-  const calc = computeCorbelResult({
-    fVSd: Number(fVSd) || 0,
-    aF: Number(aF) || 0,
-    aH: Number(aH) || 0,
-    hDim: Number(hDim) || 0,
-    bDim: Number(bDim) || 0,
-    concreteClass,
-    steelGrade,
-    rebar11Count,
-    rebar11Diameter,
-    rebar12Diameter,
-    rebarSwDiameter,
-    rebar31Diameter,
-  })
 
   const h = Math.max(Number(hDim) || 0, MIN_MM) * SCALE
   const bMm = Math.max(Number(bDim) || 0, MIN_MM)
@@ -302,11 +288,11 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
   const columnCenterY = h / 2
 
   // rebar12Count/rebarSwCount are cut *legs* (2-cięte, 4-cięte, ...); each closed loop forms 2 legs.
-  const orangeCount = Number.isFinite(calc.rebar12Count)
-    ? Math.min(Math.max(Math.floor(calc.rebar12Count / 2), 0), MAX_STIRRUPS)
+  const orangeCount = Number.isFinite(rebar12Count)
+    ? Math.min(Math.max(Math.floor(rebar12Count / 2), 0), MAX_STIRRUPS)
     : 0
-  const swCount = Number.isFinite(calc.rebarSwCount)
-    ? Math.min(Math.max(Math.floor(calc.rebarSwCount / 2), 0), MAX_STIRRUPS)
+  const swCount = Number.isFinite(rebarSwCount)
+    ? Math.min(Math.max(Math.floor(rebarSwCount / 2), 0), MAX_STIRRUPS)
     : 0
 
   const barRadius11 = (rebar11Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
@@ -357,8 +343,8 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
   // A_s31 — green vertical stirrups: 3cm top/bottom cover, sides pulled in by 3cm plus the
   // horizontal stirrups' own bar thickness so they nest just inside them. Spread from the column
   // face (x=0) out to a_F.
-  const verticalCount = Number.isFinite(calc.rebar31Count)
-    ? Math.min(Math.max(Math.floor(calc.rebar31Count / 2), 0), MAX_STIRRUPS)
+  const verticalCount = Number.isFinite(rebar31Count)
+    ? Math.min(Math.max(Math.floor(rebar31Count / 2), 0), MAX_STIRRUPS)
     : 0
   const barRadius31 = (rebar31Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
   const verticalSideCover = stirrupCover + rebarSwDiameter * SCALE
@@ -605,8 +591,11 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar12Count,
     rebar12Diameter,
+    rebarSwCount,
     rebarSwDiameter,
+    rebar31Count,
     rebar31Diameter,
   } = useCorbel()
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
@@ -624,8 +613,11 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar12Count,
     rebar12Diameter,
+    rebarSwCount,
     rebarSwDiameter,
+    rebar31Count,
     rebar31Diameter,
   }
 
@@ -647,26 +639,14 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar12Count,
     rebar12Diameter,
+    rebarSwCount,
     rebarSwDiameter,
+    rebar31Count,
     rebar31Diameter,
   ])
   const effectiveInputs = hasError ? frozenInputs : liveInputs
-
-  const calc = computeCorbelResult({
-    fVSd: Number(effectiveInputs.fVSd) || 0,
-    aF: Number(effectiveInputs.aF) || 0,
-    aH: Number(effectiveInputs.aH) || 0,
-    hDim: Number(effectiveInputs.hDim) || 0,
-    bDim: Number(effectiveInputs.bDim) || 0,
-    concreteClass: effectiveInputs.concreteClass,
-    steelGrade: effectiveInputs.steelGrade,
-    rebar11Count: effectiveInputs.rebar11Count,
-    rebar11Diameter: effectiveInputs.rebar11Diameter,
-    rebar12Diameter: effectiveInputs.rebar12Diameter,
-    rebarSwDiameter: effectiveInputs.rebarSwDiameter,
-    rebar31Diameter: effectiveInputs.rebar31Diameter,
-  })
 
   const rawLegendItems: (Legend3DItem | false)[] = [
     effectiveInputs.rebar11Count > 0 && {
@@ -674,20 +654,20 @@ function Corbel3DView() {
       label: `${effectiveInputs.rebar11Count}⌀${effectiveInputs.rebar11Diameter}`,
       shape: 'bar' as const,
     },
-    calc.rebar12Count > 0 && {
+    effectiveInputs.rebar12Count > 0 && {
       color: 'darkorange',
-      label: `${calc.rebar12Count}⌀${effectiveInputs.rebar12Diameter}`,
+      label: `${effectiveInputs.rebar12Count}⌀${effectiveInputs.rebar12Diameter}`,
       shape: 'stirrup' as const,
     },
-    calc.rebarSwCount > 0 && {
+    effectiveInputs.rebarSwCount > 0 && {
       color: 'blue',
       // rebarSwCount is cut *legs*; each closed loop (physical bar) forms 2 legs.
-      label: `${Math.floor(calc.rebarSwCount / 2)}⌀${effectiveInputs.rebarSwDiameter}`,
+      label: `${Math.floor(effectiveInputs.rebarSwCount / 2)}⌀${effectiveInputs.rebarSwDiameter}`,
       shape: 'stirrup' as const,
     },
-    calc.rebar31Count > 0 && {
+    effectiveInputs.rebar31Count > 0 && {
       color: 'green',
-      label: `${calc.rebar31Count}⌀${effectiveInputs.rebar31Diameter}`,
+      label: `${effectiveInputs.rebar31Count}⌀${effectiveInputs.rebar31Diameter}`,
       shape: 'stirrup' as const,
     },
   ]

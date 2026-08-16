@@ -23,6 +23,9 @@ interface BeamDappedEndState {
   setRebar11Count: (v: number) => void
   rebar11Diameter: number
   setRebar11Diameter: (v: number) => void
+  /** A_s11's x1/x2/x4 toggle phase — lifted to context since it drives 3D geometry, not just the picker UI. */
+  rebar11Phase: number
+  setRebar11Phase: (v: number) => void
   rebar12Count: number
   setRebar12Count: (v: number) => void
   rebar12Diameter: number
@@ -31,6 +34,8 @@ interface BeamDappedEndState {
   setRebar13Count: (v: number) => void
   rebar13Diameter: number
   setRebar13Diameter: (v: number) => void
+  rebar21Count: number
+  setRebar21Count: (v: number) => void
   rebar21Diameter: number
   setRebar21Diameter: (v: number) => void
   rebar31Count: number
@@ -61,10 +66,12 @@ export function BeamDappedEndProvider({ children }: { children: ReactNode }) {
   const [lK, setLK] = useState('300')
   const [rebar11Count, setRebar11Count] = useState(2)
   const [rebar11Diameter, setRebar11Diameter] = useState(16)
+  const [rebar11Phase, setRebar11Phase] = useState(1)
   const [rebar12Count, setRebar12Count] = useState(4)
   const [rebar12Diameter, setRebar12Diameter] = useState(12)
   const [rebar13Count, setRebar13Count] = useState(3)
   const [rebar13Diameter, setRebar13Diameter] = useState(10)
+  const [rebar21Count, setRebar21Count] = useState(6)
   const [rebar21Diameter, setRebar21Diameter] = useState(8)
   const [rebar31Count, setRebar31Count] = useState(2)
   const [rebar31Diameter, setRebar31Diameter] = useState(16)
@@ -98,6 +105,8 @@ export function BeamDappedEndProvider({ children }: { children: ReactNode }) {
         setRebar11Count,
         rebar11Diameter,
         setRebar11Diameter,
+        rebar11Phase,
+        setRebar11Phase,
         rebar12Count,
         setRebar12Count,
         rebar12Diameter,
@@ -106,6 +115,8 @@ export function BeamDappedEndProvider({ children }: { children: ReactNode }) {
         setRebar13Count,
         rebar13Diameter,
         setRebar13Diameter,
+        rebar21Count,
+        setRebar21Count,
         rebar21Diameter,
         setRebar21Diameter,
         rebar31Count,

@@ -13,9 +13,6 @@ import { Box3, DoubleSide, Shape, Vector3 } from 'three'
 import type { Group, OrthographicCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useBeamDappedEnd } from './BeamDappedEndContext'
-import { barArea } from '../../components/RebarSelector'
-import { GAMMA_S } from '../short-corbel/calculations'
-import { getFyk } from '../short-corbel/materials'
 import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
 
 const SCALE = 0.01 // 1 three.js unit = 100 mm
@@ -23,6 +20,11 @@ const MIN_MM = 1
 const BEAM_LENGTH_MM = 2000 // fixed 2m beam, independent of l_k/geometry inputs
 const REBAR_VISUAL_SCALE = 1.6 // true-to-scale bar diameters would be nearly invisible
 const BEND_RADIUS_FACTOR = 2 // bend radius = 2 * diameter, applied to every bar shown in the view
+
+/** Cover accounting for the enclosing A_s23 stirrup: the greater of 25mm + ⌀A_s23 or 25mm + 8mm. */
+export function computeCover(as23Diameter: number): number {
+  return Math.max(25 + as23Diameter, 25 + 8)
+}
 
 function evenlySpaced(count: number, from: number, to: number): number[] {
   if (count <= 0) return []
@@ -199,14 +201,14 @@ function BeamScene() {
     aK,
     aV,
     bDim,
-    vEd,
-    steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar11Phase,
     rebar12Count,
     rebar12Diameter,
     rebar13Count,
     rebar13Diameter,
+    rebar21Count,
     rebar21Diameter,
     rebar31Count,
     rebar31Diameter,
@@ -230,10 +232,7 @@ function BeamScene() {
   // d_k in mm (unscaled), used for the A_s21/A_s22 leg-extension length below.
   const dKMm = (Number(hK) || 0) - (Number(aK) || 0)
 
-  // A_s23 — manually picked (v1, onlyEven); its count is a leg count, 2 legs = 1 closed loop.
-  const vEdNum = Number(vEd) || 0
-  const fyk = getFyk(steelGrade)
-  const fyd = fyk / GAMMA_S
+  // A_s23 — manually picked (v1, x2 toggle default); its count is a leg count, 2 legs = 1 closed loop.
   const as23Count = Math.floor(rebar33Count / 2)
 
   // A_s21/A_s22 — U-shaped hangers wrapping bottom -> notch face -> top, evenly spread across the
@@ -268,23 +267,14 @@ function BeamScene() {
     (x) => x > 0,
   )
 
-  // A_s,link's physical bar count — mirrors BeamDappedEndResults.tsx's own A_s,link chain. Only
-  // the horizontal ("strzemiona poziome") case has a defined geometry here.
+  // Which A_s31 geometry variant applies: horizontal U-inserts ("strzemiona poziome") when
+  // a_v/h_k <= 0.5, full-tip-depth stirrups ("strzemiona pionowe") otherwise.
   const aVNum = Number(aV) || 0
   const hKNum = Number(hK) || 0
   const avHk = hKNum > 0 ? aVNum / hKNum : 0
   const linkCase1 = avHk <= 0.5
   const linkCase2 = !linkCase1
-  const as11ProvidedArea = Math.round(rebar11Count * barArea(rebar11Diameter))
-  const as12ProvidedArea = Math.round(rebar12Count * barArea(rebar12Diameter))
-  const as13ProvidedArea = Math.round(rebar13Count * barArea(rebar13Diameter))
-  const asLink1 = 0.5 * (as11ProvidedArea + as12ProvidedArea + as13ProvidedArea)
-  const asLink2 = (0.5 * vEdNum) / (fyd / 1000)
-  const asLink = linkCase1 ? asLink1 : asLink2
-  const rebarLinkSingleArea = barArea(rebar21Diameter)
-  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
-  const rebarLinkLegs = 2 * Math.ceil(rebarLinkRawCount / 2) // "N-cięte" shown in the v2 picker
-  const count31 = rebarLinkLegs / 2 // v2 selector: bars drawn = cuts / 2
+  const count31 = rebar21Count // manually picked, like the v1 selectors
 
   // A_s11 — horizontal U-inserts wrapping the right end in plan, stacked from just above the
   // notch underside; A_s31 continues the same stack (30mm gap) up to a 50mm top cover.
@@ -303,13 +293,21 @@ function BeamScene() {
   const legExtensionEnd = (diameter: number) =>
     Math.max(((Number(hDim) || 0) - dKMm + (Number(hK) || 0) + 50 * diameter) * SCALE, 0)
 
-  // A_s11 is onlyEven (count is picked in pairs), so the number of bars actually drawn is half
-  // the selected count.
+  // A_s11's toggle defaults to x2 (count is picked in pairs), so the number of rows actually
+  // drawn is half the selected count, regardless of phase.
   const bars11Count = Math.floor(rebar11Count / 2)
   const y11Base = cutHeight + 50 * SCALE
   const y11Step = (rebar11Diameter + 3) * SCALE
   const y11Positions = Array.from({ length: bars11Count }, (_, i) => y11Base + i * y11Step)
   const lastY11 = bars11Count > 0 ? y11Positions[bars11Count - 1] : null
+
+  // At x4, each row is drawn as two shorter U-inserts placed side by side in plan ("UU") instead of
+  // one long one — each spanning half the front/back width and reaching only to mid-span - 15mm.
+  const rebar11DoubleRow = rebar11Phase === 2
+  const barRadius11 = (rebar11Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
+  const halfSpanLegExtension11 = Math.max(length / 2 - 15 * SCALE, 0)
+  const mid11Z = (front11Z + back11Z) / 2
+  const midGap11 = 10 * SCALE // 20mm total gap between the two rows' inner ("middle") legs
 
   const y31First = (lastY11 ?? cutHeight) + (lastY11 !== null ? 30 * SCALE : 50 * SCALE)
   const y31Top = h - 50 * SCALE
@@ -425,19 +423,44 @@ function BeamScene() {
         />
       ))}
 
-      {/* A_s11 — purple horizontal U-inserts wrapping the right end, stacked from the notch underside */}
-      {y11Positions.map((y, i) => (
-        <EndHanger
-          key={i}
-          y={y}
-          cornerX={corner11X}
-          frontZ={front11Z}
-          backZ={back11Z}
-          legExtension={legExtensionEnd(rebar11Diameter)}
-          radius={(rebar11Diameter / 2) * SCALE * REBAR_VISUAL_SCALE}
-          color="purple"
-        />
-      ))}
+      {/* A_s11 — purple horizontal U-inserts wrapping the right end, stacked from the notch underside.
+          At x4, each row is two shorter U-inserts side by side in plan ("UU"), each spanning half the
+          front/back width, reaching to mid-span instead of one long insert. */}
+      {y11Positions.map((y, i) =>
+        rebar11DoubleRow ? (
+          <group key={i}>
+            <EndHanger
+              y={y}
+              cornerX={corner11X}
+              frontZ={front11Z}
+              backZ={mid11Z + midGap11}
+              legExtension={halfSpanLegExtension11}
+              radius={barRadius11}
+              color="purple"
+            />
+            <EndHanger
+              y={y}
+              cornerX={corner11X}
+              frontZ={mid11Z - midGap11}
+              backZ={back11Z}
+              legExtension={halfSpanLegExtension11}
+              radius={barRadius11}
+              color="purple"
+            />
+          </group>
+        ) : (
+          <EndHanger
+            key={i}
+            y={y}
+            cornerX={corner11X}
+            frontZ={front11Z}
+            backZ={back11Z}
+            legExtension={legExtensionEnd(rebar11Diameter)}
+            radius={barRadius11}
+            color="purple"
+          />
+        ),
+      )}
 
       {/* A_s12 — dark orange vertical U-inserts wrapping the right end */}
       {z12Positions.map((z, i) => (
@@ -645,14 +668,13 @@ function BeamDappedEndView() {
   const {
     hK,
     aV,
-    vEd,
-    steelGrade,
     rebar11Count,
     rebar11Diameter,
     rebar12Count,
     rebar12Diameter,
     rebar13Count,
     rebar13Diameter,
+    rebar21Count,
     rebar21Diameter,
     rebar31Count,
     rebar31Diameter,
@@ -662,23 +684,12 @@ function BeamDappedEndView() {
     rebar33Diameter,
   } = useBeamDappedEnd()
 
-  // Duplicates BeamScene's own A_s,link chain (Legend3D lives outside the Canvas, as plain HTML).
-  const vEdNum = Number(vEd) || 0
-  const fyk = getFyk(steelGrade)
-  const fyd = fyk / GAMMA_S
+  // Duplicates BeamScene's own A_s31 shape logic (Legend3D lives outside the Canvas, as plain HTML).
   const aVNum = Number(aV) || 0
   const hKNum = Number(hK) || 0
   const avHk = hKNum > 0 ? aVNum / hKNum : 0
   const linkCase1 = avHk <= 0.5
-  const as11ProvidedArea = Math.round(rebar11Count * barArea(rebar11Diameter))
-  const as12ProvidedArea = Math.round(rebar12Count * barArea(rebar12Diameter))
-  const as13ProvidedArea = Math.round(rebar13Count * barArea(rebar13Diameter))
-  const asLink1 = 0.5 * (as11ProvidedArea + as12ProvidedArea + as13ProvidedArea)
-  const asLink2 = (0.5 * vEdNum) / (fyd / 1000)
-  const asLink = linkCase1 ? asLink1 : asLink2
-  const rebarLinkSingleArea = barArea(rebar21Diameter)
-  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
-  const count31 = Math.ceil(rebarLinkRawCount / 2) // physical bars/stirrups drawn = cuts / 2
+  const count31 = rebar21Count // manually picked, like the v1 selectors
 
   const bars11Count = Math.floor(rebar11Count / 2)
   const as23Count = Math.floor(rebar33Count / 2)

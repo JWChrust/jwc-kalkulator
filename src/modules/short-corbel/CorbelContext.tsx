@@ -19,10 +19,16 @@ interface CorbelState {
   setRebar11Count: (v: number) => void
   rebar11Diameter: number
   setRebar11Diameter: (v: number) => void
+  rebar12Count: number
+  setRebar12Count: (v: number) => void
   rebar12Diameter: number
   setRebar12Diameter: (v: number) => void
+  rebarSwCount: number
+  setRebarSwCount: (v: number) => void
   rebarSwDiameter: number
   setRebarSwDiameter: (v: number) => void
+  rebar31Count: number
+  setRebar31Count: (v: number) => void
   rebar31Diameter: number
   setRebar31Diameter: (v: number) => void
 }
@@ -39,8 +45,11 @@ export function CorbelProvider({ children }: { children: ReactNode }) {
   const [bDim, setBDim] = useState('400')
   const [rebar11Count, setRebar11Count] = useState(4)
   const [rebar11Diameter, setRebar11Diameter] = useState(16)
+  const [rebar12Count, setRebar12Count] = useState(0)
   const [rebar12Diameter, setRebar12Diameter] = useState(8)
+  const [rebarSwCount, setRebarSwCount] = useState(8)
   const [rebarSwDiameter, setRebarSwDiameter] = useState(8)
+  const [rebar31Count, setRebar31Count] = useState(6)
   const [rebar31Diameter, setRebar31Diameter] = useState(8)
 
   return (
@@ -64,10 +73,16 @@ export function CorbelProvider({ children }: { children: ReactNode }) {
         setRebar11Count,
         rebar11Diameter,
         setRebar11Diameter,
+        rebar12Count,
+        setRebar12Count,
         rebar12Diameter,
         setRebar12Diameter,
+        rebarSwCount,
+        setRebarSwCount,
         rebarSwDiameter,
         setRebarSwDiameter,
+        rebar31Count,
+        setRebar31Count,
         rebar31Diameter,
         setRebar31Diameter,
       }}

@@ -3,7 +3,7 @@ import Formula from '../../components/Formula'
 import StatusIcon from '../../components/StatusIcon'
 import UtilizationBadge from '../../components/UtilizationBadge'
 import RebarSelector, { barArea } from '../../components/RebarSelector'
-import RebarSelectorAuto from '../../components/RebarSelectorAuto'
+import SelektorV3 from '../../components/SelektorV3'
 import { useBeamDappedEnd } from './BeamDappedEndContext'
 import { formatNumberTex } from '../short-corbel/format'
 import { ALPHA_CC, GAMMA_C, GAMMA_S } from '../short-corbel/calculations'
@@ -29,6 +29,8 @@ function BeamDappedEndResults() {
     setRebar11Count,
     rebar11Diameter,
     setRebar11Diameter,
+    rebar11Phase,
+    setRebar11Phase,
     rebar12Count,
     setRebar12Count,
     rebar12Diameter,
@@ -37,6 +39,8 @@ function BeamDappedEndResults() {
     setRebar13Count,
     rebar13Diameter,
     setRebar13Diameter,
+    rebar21Count,
+    setRebar21Count,
     rebar21Diameter,
     setRebar21Diameter,
     rebar31Count,
@@ -129,8 +133,8 @@ function BeamDappedEndResults() {
   const as31Area = Math.round(rebar31Count * barArea(rebar31Diameter))
   const as32Area = Math.round(rebar32Count * barArea(rebar32Diameter))
 
-  // A_s33 — the picker's own count is a leg count (2 legs = 1 closed stirrup loop), enforced
-  // even via onlyEven.
+  // A_s33 — the picker's own count is a leg count (2 legs = 1 closed stirrup loop); its toggle
+  // defaults to x2 so only even counts are selectable.
   const as33Area = Math.round(rebar33Count * barArea(rebar33Diameter))
 
   const asProvidedTotal2 = as31Area + as32Area + as33Area
@@ -149,12 +153,8 @@ function BeamDappedEndResults() {
   const avHkTex = formatNumberTex(avHk, 3)
   const asLinkTex = formatNumberTex(asLink, 0)
 
-  // A_s31 (zbrojenie uzupełniające) — the v2 (diameter-only) picker's provided area; mirrors
-  // RebarSelectorAuto's own internal leg-count logic.
-  const rebarLinkSingleArea = barArea(rebar21Diameter)
-  const rebarLinkRawCount = rebarLinkSingleArea > 0 ? Math.ceil(asLink / rebarLinkSingleArea) : 0
-  const rebarLinkLegs = 2 * Math.ceil(rebarLinkRawCount / 2)
-  const asLinkProvided = Math.round(rebarLinkLegs * rebarLinkSingleArea)
+  // A_s31 (zbrojenie uzupełniające) — manually picked (count + diameter), like the v1 selectors.
+  const asLinkProvided = Math.round(rebar21Count * barArea(rebar21Diameter))
   const asLinkProvidedTex = formatNumberTex(asLinkProvided, 0)
   const linkCheckMet = asLinkProvided >= asLink
 
@@ -322,7 +322,9 @@ function BeamDappedEndResults() {
             setRebar11Count(count)
             setRebar11Diameter(diameter)
           }}
-          onlyEven
+          phase={rebar11Phase}
+          onPhaseChange={setRebar11Phase}
+          disabledPhases={[0]}
         />
         <RebarSelector
           label="pręty drugorzędne"
@@ -333,6 +335,7 @@ function BeamDappedEndResults() {
             setRebar12Count(count)
             setRebar12Diameter(diameter)
           }}
+          disabledPhases={[2]}
         />
         <RebarSelector
           label="pręty trzeciorzędne"
@@ -343,6 +346,7 @@ function BeamDappedEndResults() {
             setRebar13Count(count)
             setRebar13Diameter(diameter)
           }}
+          disabledPhases={[2]}
         />
       </div>
 
@@ -365,6 +369,7 @@ function BeamDappedEndResults() {
             setRebar31Count(count)
             setRebar31Diameter(diameter)
           }}
+          disabledPhases={[2]}
         />
         <RebarSelector
           label="pręty drugorzędne"
@@ -375,6 +380,7 @@ function BeamDappedEndResults() {
             setRebar32Count(count)
             setRebar32Diameter(diameter)
           }}
+          disabledPhases={[2]}
         />
         <RebarSelector
           label="strzemiona podwieszające"
@@ -385,7 +391,8 @@ function BeamDappedEndResults() {
             setRebar33Count(count)
             setRebar33Diameter(diameter)
           }}
-          onlyEven
+          initialPhase={1}
+          disabledPhases={[0]}
         />
       </div>
 
@@ -414,13 +421,18 @@ function BeamDappedEndResults() {
             ? 'Zbrojenie uzupełniające w postaci strzemion poziomych (wsuwki nad zbrojeniem głównym).'
             : 'Zbrojenie uzupełniające w postaci strzemion pionowych rozłożonych na odcinku między krawędzią podcięcia i osią podparcia.'}
         </p>
-        <RebarSelectorAuto
+        <SelektorV3
           label="zbrojenie uzupełniające"
           resultVariable="A_{s31}"
           requiredArea={asLink}
           dotColorClass="bg-[green]"
-          value={{ diameter: rebar21Diameter }}
-          onChange={({ diameter }) => setRebar21Diameter(diameter)}
+          value={{ count: rebar21Count, diameter: rebar21Diameter }}
+          onChange={({ count, diameter }) => {
+            setRebar21Count(count)
+            setRebar21Diameter(diameter)
+          }}
+          initialPhase={1}
+          disabledPhases={[0]}
         />
       </div>
 
