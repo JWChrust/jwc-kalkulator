@@ -22,10 +22,15 @@ interface SelektorV3Props {
   dotColorClass: string
   value: SelektorV3Value
   onChange: (value: SelektorV3Value) => void
-  /** Initial x1/x2/x4 toggle phase (index into the toggle buttons). Defaults to 0 (x1). */
+  /** Initial x1/x2/x4 toggle phase (index into the toggle buttons). Defaults to 0 (x1).
+   *  Ignored when `phase`/`onPhaseChange` are provided (controlled mode). */
   initialPhase?: number
   /** Toggle phase indices to disable for this instance (e.g. [0] to forbid x1 when bars must pair up). */
   disabledPhases?: number[]
+  /** Controlled toggle phase — provide together with `onPhaseChange` when the phase needs to be
+   *  read elsewhere (e.g. to drive 3D geometry). Uncontrolled (internal state) when omitted. */
+  phase?: number
+  onPhaseChange?: (phase: number) => void
 }
 
 /** Auto picker: user chooses only the diameter (plus an x1/x2/x4 toggle); the bar count is derived
@@ -39,9 +44,13 @@ function SelektorV3({
   onChange,
   initialPhase = 0,
   disabledPhases = [],
+  phase: controlledPhase,
+  onPhaseChange,
 }: SelektorV3Props) {
   const [open, setOpen] = useState(false)
-  const [phase, setPhase] = useState(initialPhase)
+  const [uncontrolledPhase, setUncontrolledPhase] = useState(initialPhase)
+  const phase = controlledPhase ?? uncontrolledPhase
+  const setPhase = onPhaseChange ?? setUncontrolledPhase
   const multiplier = PHASE_MULTIPLIERS[phase]
 
   const singleArea = barArea(value.diameter)

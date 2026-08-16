@@ -38,6 +38,12 @@ interface RebarSelectorProps {
    *  read elsewhere (e.g. to drive 3D geometry). Uncontrolled (internal state) when omitted. */
   phase?: number
   onPhaseChange?: (phase: number) => void
+  /** When true, x2/x4 phases (not x1) restrict the table to the single row matching that phase's
+   *  multiplier exactly (e.g. only row "2" at x2), instead of every multiple of it. */
+  singleRowPerPhase?: boolean
+  /** Optional per-diameter, per-phase column filter — return false to hide that diameter's column
+   *  entirely (e.g. when it can't structurally fit at the current toggle phase). */
+  diameterFilter?: (diameter: number, phase: number) => boolean
 }
 
 export function barArea(diameter: number): number {
@@ -56,11 +62,16 @@ function RebarSelector({
   disabledPhases = [],
   phase: controlledPhase,
   onPhaseChange,
+  singleRowPerPhase = false,
+  diameterFilter,
 }: RebarSelectorProps) {
   const [open, setOpen] = useState(false)
   const [uncontrolledPhase, setUncontrolledPhase] = useState(initialPhase)
   const phase = controlledPhase ?? uncontrolledPhase
   const multiplier = PHASE_MULTIPLIERS[phase]
+  const visibleDiameters = diameterFilter
+    ? DIAMETERS.filter((d) => diameterFilter(d, phase))
+    : DIAMETERS
   const providedArea = Math.round(value.count * barArea(value.diameter))
   const sufficient = requiredArea === undefined ? undefined : providedArea >= requiredArea
 
@@ -71,8 +82,14 @@ function RebarSelector({
     } else {
       setUncontrolledPhase(i)
     }
-    if (value.count !== 0 && value.count % m !== 0) {
-      onChange({ count: snapUpToMultiple(value.count, m), diameter: value.diameter })
+    if (value.count !== 0) {
+      if (singleRowPerPhase && i !== 0) {
+        if (value.count !== m) {
+          onChange({ count: m, diameter: value.diameter })
+        }
+      } else if (value.count % m !== 0) {
+        onChange({ count: snapUpToMultiple(value.count, m), diameter: value.diameter })
+      }
     }
   }
 
@@ -141,7 +158,7 @@ function RebarSelector({
                         0
                       </button>
                     </th>
-                    {DIAMETERS.map((d) => (
+                    {visibleDiameters.map((d) => (
                       <th
                         key={d}
                         className="border border-slate-300 bg-slate-100 px-2 py-1 font-semibold text-slate-700"
@@ -152,12 +169,14 @@ function RebarSelector({
                   </tr>
                 </thead>
                 <tbody>
-                  {COUNTS.filter((c) => c % multiplier === 0).map((c) => (
+                  {COUNTS.filter((c) =>
+                    singleRowPerPhase && phase !== 0 ? c === multiplier : c % multiplier === 0,
+                  ).map((c) => (
                     <tr key={c}>
                       <th className="border border-slate-300 bg-slate-100 px-2 py-1 text-right font-semibold text-slate-700">
                         {c}
                       </th>
-                      {DIAMETERS.map((d) => {
+                      {visibleDiameters.map((d) => {
                         const area = Math.round(c * barArea(d))
                         const cellSufficient =
                           requiredArea === undefined ? undefined : area >= requiredArea

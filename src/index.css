@@ -101,3 +101,59 @@ body {
     min-height: 70vh;
   }
 }
+
+/*
+ * Print mode: a fixed, non-responsive layout for producing a printable page — left panel top-left,
+ * 3D view below it, calculations spanning the full right column. Two classes
+ * (`.pane-grid.print-mode`) outrank any aspect-ratio breakpoint's single-class `.pane-grid` rule
+ * regardless of source order or window shape, so this always wins while active.
+ */
+.pane-grid.print-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* The 3D view's row takes whatever space is left after the left panel's own height, instead of
+     a fixed pixel height — grid items stretch to fill their row by default. */
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'left center'
+    'right center';
+  overflow-y: auto;
+}
+
+.pane-grid.print-mode .pane-left,
+.pane-grid.print-mode .pane-center {
+  overflow: visible;
+  min-height: 0;
+}
+
+.pane-grid.print-mode .pane-right {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* The physical printout should only ever show the calculator content, not the toolbar (including
+   the print-mode button itself — it has no purpose on paper). */
+@media print {
+  header {
+    display: none !important;
+  }
+
+  /*
+   * On screen, the app is clamped to h-screen and scrolls internally (.pane-grid's own
+   * overflow-y: auto) so everything fits in one viewport. For print that's wrong: clamping the
+   * grid's height meant the 3D view's "1fr" row only got whatever was left over after the (often
+   * very tall) left panel claimed its "auto" row, so the viewport shrank to a sliver. Let the
+   * whole app grow to its natural height instead, so the browser paginates the overflow across as
+   * many physical pages as needed, and give the 3D view row a fixed, generous height of its own
+   * (independent of the left panel's height) so it actually fills real page space.
+   */
+  .flex.h-screen.flex-col {
+    height: auto !important;
+  }
+
+  .pane-grid.print-mode {
+    height: auto !important;
+    overflow: visible !important;
+    grid-template-rows: auto 70vh;
+  }
+}

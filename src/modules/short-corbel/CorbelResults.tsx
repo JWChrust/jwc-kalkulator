@@ -26,18 +26,26 @@ function CorbelResults() {
     setRebar11Count,
     rebar11Diameter,
     setRebar11Diameter,
+    rebar11Phase,
+    setRebar11Phase,
     rebar12Count,
     setRebar12Count,
     rebar12Diameter,
     setRebar12Diameter,
+    rebar12Phase,
+    setRebar12Phase,
     rebarSwCount,
     setRebarSwCount,
     rebarSwDiameter,
     setRebarSwDiameter,
+    rebarSwPhase,
+    setRebarSwPhase,
     rebar31Count,
     setRebar31Count,
     rebar31Diameter,
     setRebar31Diameter,
+    rebar31Phase,
+    setRebar31Phase,
   } = useCorbel()
 
   const fVSdNum = Number(fVSd) || 0
@@ -156,7 +164,6 @@ function CorbelResults() {
   const basicUtilization = fVRd > 0 ? (fVSdNum / fVRd) * 100 : 0
   const mainRebarUtilization = asProvided > 0 ? (asReq / asProvided) * 100 : 0
   const swUtilization = aswHArea > 0 ? (aswH / aswHArea) * 100 : 0
-  const vRdcUtilization = vRdc > 0 ? (fVSdNum / vRdc) * 100 : 0
   const linkUtilization = asLinkArea > 0 ? (asLink / asLinkArea) * 100 : 0
 
   return (
@@ -367,8 +374,11 @@ function CorbelResults() {
             setRebar11Count(count)
             setRebar11Diameter(diameter)
           }}
-          initialPhase={1}
-          disabledPhases={[0]}
+          phase={rebar11Phase}
+          onPhaseChange={setRebar11Phase}
+          singleRowPerPhase
+          disabledPhases={[2]}
+          diameterFilter={(d, phase) => phase !== 1 || bNum >= 2 * 60 + 2 * 8.5 * d}
         />
         <SelektorV3
           label="pętle poziome"
@@ -380,7 +390,8 @@ function CorbelResults() {
             setRebar12Count(count)
             setRebar12Diameter(diameter)
           }}
-          initialPhase={1}
+          phase={rebar12Phase}
+          onPhaseChange={setRebar12Phase}
           disabledPhases={[0]}
         />
       </div>
@@ -422,7 +433,8 @@ function CorbelResults() {
             setRebarSwCount(count)
             setRebarSwDiameter(diameter)
           }}
-          initialPhase={1}
+          phase={rebarSwPhase}
+          onPhaseChange={setRebarSwPhase}
           disabledPhases={[0]}
         />
       </div>
@@ -445,13 +457,16 @@ function CorbelResults() {
         <p className="text-[14px] text-slate-600">
           Sprawdzenie zapotrzebowania na strzemiona pionowe
         </p>
-        <Formula
-          tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} ${aFh <= 0.5 ? '\\le' : '>'} 0{,}5 \Rightarrow ${
-            aFh <= 0.5
-              ? String.raw`\textbf{\text{strzemiona pionowe nie są wymagane}}`
-              : String.raw`\textcolor{red}{\textbf{\text{wymagane zbrojenie strzemionami pionowymi}}}`
-          }`}
-        />
+        <div className="flex items-center gap-2">
+          <Formula
+            tex={String.raw`\frac{a_F}{h} = \mathbf{${aFhTex}} ${aFh <= 0.5 ? '\\le' : '>'} 0{,}5`}
+          />
+          <span className="text-[14px] font-semibold text-slate-900">
+            ⇒ {aFh <= 0.5
+              ? 'strzemiona pionowe nie są wymagane'
+              : 'wymagane zbrojenie strzemionami pionowymi'}
+          </span>
+        </div>
       </div>
 
       <Collapsible label="sprawdzenia strzemion pionowych">
@@ -511,8 +526,9 @@ function CorbelResults() {
                 <Formula
                   tex={String.raw`V_{Rd,c} \ge F_{Ed} \Rightarrow \mathbf{${vRdcTex}}\ [\text{kN}] \ge \mathbf{${fVSdTex}}\ [\text{kN}]`}
                 />
-                <StatusIcon ok={vRdc >= fVSdNum} />
-                <UtilizationBadge percent={vRdcUtilization} />
+                <span className="text-[14px] font-semibold text-slate-900">
+                  ⇒ warunek {vRdc >= fVSdNum ? 'spełniony' : 'niespełniony'}
+                </span>
               </div>
             </div>
 
@@ -549,7 +565,8 @@ function CorbelResults() {
             setRebar31Count(count)
             setRebar31Diameter(diameter)
           }}
-          initialPhase={1}
+          phase={rebar31Phase}
+          onPhaseChange={setRebar31Phase}
           disabledPhases={[0]}
         />
       </div>

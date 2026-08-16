@@ -14,6 +14,7 @@ import type { Group, OrthographicCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useBeamDappedEnd } from './BeamDappedEndContext'
 import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
+import { usePrintMode } from '../../PrintModeContext'
 
 const SCALE = 0.01 // 1 three.js unit = 100 mm
 const MIN_MM = 1
@@ -664,6 +665,27 @@ function BeamDappedEndView() {
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const sceneRef = useRef<Group>(null)
   const viewControllerRef = useRef<ViewControllerHandle>(null)
+  const printMode = usePrintMode()
+
+  // Print mode forces the default (iso) view — the layout also resizes, so wait a beat for that
+  // reflow before re-fitting the camera to the new canvas size.
+  useEffect(() => {
+    if (printMode) {
+      const id = setTimeout(() => viewControllerRef.current?.fitView('iso'), 50)
+      return () => clearTimeout(id)
+    }
+  }, [printMode])
+
+  // The @media print rules only take effect once the browser actually starts printing (not when
+  // print mode is toggled on-screen), which resizes the 3D pane again — re-fit once more so the
+  // camera framing matches the printed page's canvas size, not the smaller on-screen preview size.
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      setTimeout(() => viewControllerRef.current?.fitView('iso'), 100)
+    }
+    window.addEventListener('beforeprint', handleBeforePrint)
+    return () => window.removeEventListener('beforeprint', handleBeforePrint)
+  }, [])
 
   const {
     hK,

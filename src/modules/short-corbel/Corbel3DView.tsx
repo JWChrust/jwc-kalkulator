@@ -15,6 +15,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useCorbel } from './CorbelContext'
 import { hasCorbelInputError } from './validation'
 import Legend3D, { type Legend3DItem } from '../../components/Legend3D'
+import { usePrintMode } from '../../PrintModeContext'
 
 const SCALE = 0.01 // 1 three.js unit = 100 mm
 const MIN_MM = 1
@@ -28,6 +29,7 @@ const STIRRUP_COVER_MM = 30 // A_s12/A_sw,h stirrup cover on all sides
 const ORANGE_TOP_MARGIN_MM = 45 // first orange stirrup sits 4.5cm from the corbel's top edge
 const REBAR_VISUAL_SCALE = 1.6 // true-to-scale bar diameters would be nearly invisible
 const MAX_STIRRUPS = 60
+const PHASE_MULTIPLIERS = [1, 2, 4] // mirrors RebarSelector/SelektorV3's x1/x2/x4 toggle phases
 const COLUMN_EXTRA_MM = 100 // column cross-section is b + 100mm square
 const COLUMN_LENGTH_MM = 2000
 const ANCHOR_FACTOR = 40 // main bar anchorage length into the column = 40 * diameter
@@ -241,6 +243,98 @@ function AnchorBar({
   )
 }
 
+interface CapTieBarProps {
+  farX: number
+  tipX: number
+  frontZ: number
+  backZ: number
+  topY: number
+  bottomY: number
+  radius: number
+  /** Bend radius (already scaled) — for A_s11 at x2 this is 8×⌀. */
+  bendRadius: number
+  color: string
+}
+
+/**
+ * A_s11 at x2 — single bar, bent into 5 straight segments: two vertical anchorage tails at the
+ * column's far face (opposite the corbel), each bending 90° into a horizontal run along the
+ * corbel's top edge (at the front/back edges), joined by a straight bridge across the width at
+ * the corbel's tip — one continuous bar, closed at the tip, open (anchored down) at the column.
+ */
+function CapTieBar({
+  farX,
+  tipX,
+  frontZ,
+  backZ,
+  topY,
+  bottomY,
+  radius,
+  bendRadius,
+  color,
+}: CapTieBarProps) {
+  const xSpan = tipX - farX
+  const zSpan = frontZ - backZ
+  const ySpan = topY - bottomY
+  const R = Math.max(Math.min(bendRadius, xSpan / 4, zSpan / 4, ySpan / 3), radius * 1.01)
+  const torusArgs: [number, number, number, number, number] = [R, radius, 8, 16, Math.PI / 2]
+
+  const vertTop = topY - R
+  const vertLen = Math.max(vertTop - bottomY, 0)
+  const horizStart = farX + R
+  const horizEnd = tipX - R
+  const horizLen = Math.max(horizEnd - horizStart, 0)
+  const bridgeStart = backZ + R
+  const bridgeEnd = frontZ - R
+  const bridgeLen = Math.max(bridgeEnd - bridgeStart, 0)
+
+  return (
+    <>
+      {/* vertical tails, at the column's far face */}
+      <mesh position={[farX, (bottomY + vertTop) / 2, frontZ]}>
+        <cylinderGeometry args={[radius, radius, vertLen, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[farX, (bottomY + vertTop) / 2, backZ]}>
+        <cylinderGeometry args={[radius, radius, vertLen, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {/* fillets: vertical tail -> horizontal leg */}
+      <mesh position={[farX + R, vertTop, frontZ]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={torusArgs} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[farX + R, vertTop, backZ]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={torusArgs} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {/* horizontal legs, along the corbel's axis at the front/back edges */}
+      <mesh position={[(horizStart + horizEnd) / 2, topY, frontZ]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[radius, radius, horizLen, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[(horizStart + horizEnd) / 2, topY, backZ]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[radius, radius, horizLen, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {/* fillets: horizontal leg -> bridge, at the corbel's tip */}
+      <mesh position={[tipX - R, topY, frontZ - R]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={torusArgs} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[tipX - R, topY, backZ + R]} rotation={[Math.PI / 2, 0, -Math.PI / 2]}>
+        <torusGeometry args={torusArgs} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      {/* bridge, connecting the two planes along the corbel's top edge at the tip */}
+      <mesh position={[tipX, topY, (bridgeStart + bridgeEnd) / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[radius, radius, bridgeLen, 12]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </>
+  )
+}
+
 export interface CorbelSceneInputs {
   fVSd: string
   aF: string
@@ -251,12 +345,16 @@ export interface CorbelSceneInputs {
   steelGrade: string
   rebar11Count: number
   rebar11Diameter: number
+  rebar11Phase: number
   rebar12Count: number
   rebar12Diameter: number
+  rebar12Phase: number
   rebarSwCount: number
   rebarSwDiameter: number
+  rebarSwPhase: number
   rebar31Count: number
   rebar31Diameter: number
+  rebar31Phase: number
 }
 
 function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
@@ -266,12 +364,16 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
     bDim,
     rebar11Count,
     rebar11Diameter,
+    rebar11Phase,
     rebar12Count,
     rebar12Diameter,
+    rebar12Phase,
     rebarSwCount,
     rebarSwDiameter,
+    rebarSwPhase,
     rebar31Count,
     rebar31Diameter,
+    rebar31Phase,
   } = inputs
 
   const h = Math.max(Number(hDim) || 0, MIN_MM) * SCALE
@@ -287,12 +389,15 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
   const columnLength = COLUMN_LENGTH_MM * SCALE
   const columnCenterY = h / 2
 
-  // rebar12Count/rebarSwCount are cut *legs* (2-cięte, 4-cięte, ...); each closed loop forms 2 legs.
+  // rebar12Count/rebarSwCount are cut *legs* (2-cięte, 4-cięte, ...); the number of loops drawn is
+  // the selected count divided by the current toggle phase's multiplier.
+  const rebar12Multiplier = PHASE_MULTIPLIERS[rebar12Phase] ?? 1
   const orangeCount = Number.isFinite(rebar12Count)
-    ? Math.min(Math.max(Math.floor(rebar12Count / 2), 0), MAX_STIRRUPS)
+    ? Math.min(Math.max(Math.floor(rebar12Count / rebar12Multiplier), 0), MAX_STIRRUPS)
     : 0
+  const rebarSwMultiplier = PHASE_MULTIPLIERS[rebarSwPhase] ?? 1
   const swCount = Number.isFinite(rebarSwCount)
-    ? Math.min(Math.max(Math.floor(rebarSwCount / 2), 0), MAX_STIRRUPS)
+    ? Math.min(Math.max(Math.floor(rebarSwCount / rebarSwMultiplier), 0), MAX_STIRRUPS)
     : 0
 
   const barRadius11 = (rebar11Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
@@ -326,6 +431,12 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
   const halfSpanZ = Math.max(b / 2 - purpleSideCover, 0)
   const barZPositions = evenlySpaced(rebar11Count, -halfSpanZ, halfSpanZ)
 
+  // CapTieBar's (x2) cover, 50mm+0.5⌀ on all sides (front/back, top, and the column's far face).
+  const capTieCover = (50 + 0.5 * rebar11Diameter) * SCALE
+  const capTieHalfSpanZ = Math.max(b / 2 - capTieCover, 0)
+  const capTieTopY = Math.max(h - capTieCover, 0)
+  const capTieFarX = columnFarFaceX + capTieCover
+
   // Orange stirrups stack tightly one above another at the corbel's top edge.
   const orangeSpacing = Math.max(barRadius12 * 2.4, MIN_MM * SCALE)
   const orangeYPositions = Array.from({ length: orangeCount }, (_, i) =>
@@ -334,20 +445,27 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
 
   // Blue stirrups are spread evenly across the corbel's height: first 8cm from the top edge
   // (or 6cm when there are no orange stirrups to yield space to), last 8cm from the bottom edge.
+  // An extra 10mm of top cover is added whenever A_s12 is present.
   const swEdgeMargin = BLUE_EDGE_MARGIN_MM * SCALE
-  const swTopMargin = (orangeCount > 0 ? BLUE_EDGE_MARGIN_MM : BLUE_NO_ORANGE_TOP_MARGIN_MM) * SCALE
+  const swTopMargin =
+    ((orangeCount > 0 ? BLUE_EDGE_MARGIN_MM : BLUE_NO_ORANGE_TOP_MARGIN_MM) +
+      (rebar12Count > 0 ? 10 : 0)) *
+    SCALE
   const swRangeBottom = Math.min(swEdgeMargin, h / 2)
   const swRangeTop = Math.max(h - swTopMargin, swRangeBottom)
   const swYPositions = evenlySpaced(swCount, swRangeBottom, swRangeTop)
 
   // A_s31 — green vertical stirrups: 3cm top/bottom cover, sides pulled in by 3cm plus the
   // horizontal stirrups' own bar thickness so they nest just inside them. Spread from the column
-  // face (x=0) out to a_F.
+  // face (x=0) out to a_F. Position count is the selected count divided by the toggle phase's
+  // multiplier (matching A_s12/A_s21's convention).
+  const rebar31Multiplier = PHASE_MULTIPLIERS[rebar31Phase] ?? 1
   const verticalCount = Number.isFinite(rebar31Count)
-    ? Math.min(Math.max(Math.floor(rebar31Count / 2), 0), MAX_STIRRUPS)
+    ? Math.min(Math.max(Math.floor(rebar31Count / rebar31Multiplier), 0), MAX_STIRRUPS)
     : 0
   const barRadius31 = (rebar31Diameter / 2) * SCALE * REBAR_VISUAL_SCALE
-  const verticalSideCover = stirrupCover + rebarSwDiameter * SCALE
+  // Front/back cover: 25mm + half the bar's own diameter + 8mm.
+  const verticalSideCover = (25 + 0.5 * rebar31Diameter + 8) * SCALE
   const verticalRectHeightY = Math.max(h - 2 * stirrupCover, stirrupCover)
   const verticalRectWidthZ = Math.max(b - 2 * verticalSideCover, verticalSideCover)
   const verticalXPositions = evenlySpaced(verticalCount, 0, aFMm * SCALE)
@@ -386,59 +504,116 @@ function CorbelScene({ inputs }: { inputs: CorbelSceneInputs }) {
         <Edges color="black" />
       </mesh>
 
-      {/* A_s11 — main tie bars, anchored into the column, nested inside the stirrups */}
-      {barZPositions.map((z, i) => (
-        <AnchorBar
-          key={i}
-          z={z}
-          columnAxisX={columnAxisX}
-          columnTrueAxisX={columnTrueAxisX}
+      {/* A_s11 — main tie bars, anchored into the column, nested inside the stirrups.
+          x1: full loop to the corbel's bottom, one per bar position. x2: a single bar, regardless
+          of the selected count — two vertical tails at the column's far face bending into
+          horizontal runs at the corbel's front/back edges, joined by a bridge at the tip. x4: not
+          drawn. */}
+      {rebar11Phase === 1 ? (
+        <CapTieBar
+          farX={capTieFarX}
           tipX={tipX}
-          topY={topY}
-          bottomY={bottomY}
-          anchorFreeY={anchorFreeY}
+          frontZ={capTieHalfSpanZ}
+          backZ={-capTieHalfSpanZ}
+          topY={capTieTopY}
+          bottomY={capTieTopY - anchorLen}
           radius={barRadius11}
+          bendRadius={8.5 * rebar11Diameter * SCALE}
           color="purple"
         />
-      ))}
+      ) : (
+        rebar11Phase === 0 &&
+        barZPositions.map((z, i) => (
+          <AnchorBar
+            key={i}
+            z={z}
+            columnAxisX={columnAxisX}
+            columnTrueAxisX={columnTrueAxisX}
+            tipX={tipX}
+            topY={topY}
+            bottomY={bottomY}
+            anchorFreeY={anchorFreeY}
+            radius={barRadius11}
+            color="purple"
+          />
+        ))
+      )}
 
-      {/* A_s12 — orange horizontal stirrup loops, top of the corbel */}
+      {/* A_s12 — orange horizontal stirrup loops, top of the corbel. At x4 ("strzemię czterocięte"),
+          a second, narrower loop nests inside the normal one: same cover/length as the outer loop's
+          short legs, but its long legs split the space between the outer loop's long legs into 3
+          equal parts. */}
       {orangeYPositions.map((y, i) => (
-        <HorizontalStirrupLoop
-          key={i}
-          y={y}
-          centerX={stirrupCenterX}
-          rectLengthX={stirrupRectLengthX}
-          rectWidthZ={stirrupRectWidthZ}
-          radius={barRadius12}
-          color="darkorange"
-        />
+        <group key={i}>
+          <HorizontalStirrupLoop
+            y={y}
+            centerX={stirrupCenterX}
+            rectLengthX={stirrupRectLengthX}
+            rectWidthZ={stirrupRectWidthZ}
+            radius={barRadius12}
+            color="darkorange"
+          />
+          {rebar12Phase === 2 && (
+            <HorizontalStirrupLoop
+              y={y}
+              centerX={stirrupCenterX}
+              rectLengthX={stirrupRectLengthX}
+              rectWidthZ={stirrupRectWidthZ / 3}
+              radius={barRadius12}
+              color="darkorange"
+            />
+          )}
+        </group>
       ))}
 
-      {/* A_sw,h — blue horizontal stirrup loops, continuing below the orange ones */}
+      {/* A_sw,h — blue horizontal stirrup loops, continuing below the orange ones. At x4
+          ("strzemię czterocięte"), a second, narrower loop nests inside the normal one. */}
       {swYPositions.map((y, i) => (
-        <HorizontalStirrupLoop
-          key={i}
-          y={y}
-          centerX={stirrupCenterX}
-          rectLengthX={stirrupRectLengthX}
-          rectWidthZ={stirrupRectWidthZ}
-          radius={barRadiusSw}
-          color="blue"
-        />
+        <group key={i}>
+          <HorizontalStirrupLoop
+            y={y}
+            centerX={stirrupCenterX}
+            rectLengthX={stirrupRectLengthX}
+            rectWidthZ={stirrupRectWidthZ}
+            radius={barRadiusSw}
+            color="blue"
+          />
+          {rebarSwPhase === 2 && (
+            <HorizontalStirrupLoop
+              y={y}
+              centerX={stirrupCenterX}
+              rectLengthX={stirrupRectLengthX}
+              rectWidthZ={stirrupRectWidthZ / 3}
+              radius={barRadiusSw}
+              color="blue"
+            />
+          )}
+        </group>
       ))}
 
-      {/* A_s31 — green vertical stirrups, spread from the column face out to a_F */}
+      {/* A_s31 — green vertical stirrups, spread from the column face out to a_F. At x4
+          ("strzemię czterocięte"), a second, narrower loop nests inside the normal one. */}
       {verticalXPositions.map((x, i) => (
-        <VerticalStirrupLoop
-          key={i}
-          x={x}
-          centerY={h / 2}
-          rectHeightY={verticalRectHeightY}
-          rectWidthZ={verticalRectWidthZ}
-          radius={barRadius31}
-          color="green"
-        />
+        <group key={i}>
+          <VerticalStirrupLoop
+            x={x}
+            centerY={h / 2}
+            rectHeightY={verticalRectHeightY}
+            rectWidthZ={verticalRectWidthZ}
+            radius={barRadius31}
+            color="green"
+          />
+          {rebar31Phase === 2 && (
+            <VerticalStirrupLoop
+              x={x}
+              centerY={h / 2}
+              rectHeightY={verticalRectHeightY}
+              rectWidthZ={verticalRectWidthZ / 3}
+              radius={barRadius31}
+              color="green"
+            />
+          )}
+        </group>
       ))}
     </>
   )
@@ -591,16 +766,41 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar11Phase,
     rebar12Count,
     rebar12Diameter,
+    rebar12Phase,
     rebarSwCount,
     rebarSwDiameter,
+    rebarSwPhase,
     rebar31Count,
     rebar31Diameter,
+    rebar31Phase,
   } = useCorbel()
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const sceneRef = useRef<Group>(null)
   const viewControllerRef = useRef<ViewControllerHandle>(null)
+  const printMode = usePrintMode()
+
+  // Print mode forces the default (iso) view — the layout also resizes, so wait a beat for that
+  // reflow before re-fitting the camera to the new canvas size.
+  useEffect(() => {
+    if (printMode) {
+      const id = setTimeout(() => viewControllerRef.current?.fitView('iso'), 50)
+      return () => clearTimeout(id)
+    }
+  }, [printMode])
+
+  // The @media print rules only take effect once the browser actually starts printing (not when
+  // print mode is toggled on-screen), which resizes the 3D pane again — re-fit once more so the
+  // camera framing matches the printed page's canvas size, not the smaller on-screen preview size.
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      setTimeout(() => viewControllerRef.current?.fitView('iso'), 100)
+    }
+    window.addEventListener('beforeprint', handleBeforePrint)
+    return () => window.removeEventListener('beforeprint', handleBeforePrint)
+  }, [])
 
   const hasError = hasCorbelInputError({ fVSd, aF, aH, hDim, bDim, concreteClass })
   const liveInputs: CorbelSceneInputs = {
@@ -613,12 +813,16 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar11Phase,
     rebar12Count,
     rebar12Diameter,
+    rebar12Phase,
     rebarSwCount,
     rebarSwDiameter,
+    rebarSwPhase,
     rebar31Count,
     rebar31Diameter,
+    rebar31Phase,
   }
 
   // Freeze the 3D view on the last valid input set while the left/center panels show an error.
@@ -639,12 +843,16 @@ function Corbel3DView() {
     steelGrade,
     rebar11Count,
     rebar11Diameter,
+    rebar11Phase,
     rebar12Count,
     rebar12Diameter,
+    rebar12Phase,
     rebarSwCount,
     rebarSwDiameter,
+    rebarSwPhase,
     rebar31Count,
     rebar31Diameter,
+    rebar31Phase,
   ])
   const effectiveInputs = hasError ? frozenInputs : liveInputs
 
@@ -657,18 +865,18 @@ function Corbel3DView() {
     effectiveInputs.rebar12Count > 0 && {
       color: 'darkorange',
       label: `${effectiveInputs.rebar12Count}⌀${effectiveInputs.rebar12Diameter}`,
-      shape: 'stirrup' as const,
+      shape: effectiveInputs.rebar12Phase === 2 ? ('fourCutStirrup' as const) : ('stirrup' as const),
     },
     effectiveInputs.rebarSwCount > 0 && {
       color: 'blue',
       // rebarSwCount is cut *legs*; each closed loop (physical bar) forms 2 legs.
       label: `${Math.floor(effectiveInputs.rebarSwCount / 2)}⌀${effectiveInputs.rebarSwDiameter}`,
-      shape: 'stirrup' as const,
+      shape: effectiveInputs.rebarSwPhase === 2 ? ('fourCutStirrup' as const) : ('stirrup' as const),
     },
     effectiveInputs.rebar31Count > 0 && {
       color: 'green',
       label: `${effectiveInputs.rebar31Count}⌀${effectiveInputs.rebar31Diameter}`,
-      shape: 'stirrup' as const,
+      shape: effectiveInputs.rebar31Phase === 2 ? ('fourCutStirrup' as const) : ('stirrup' as const),
     },
   ]
   const legendItems: Legend3DItem[] = rawLegendItems.filter(
