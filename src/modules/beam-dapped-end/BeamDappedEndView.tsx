@@ -676,12 +676,12 @@ function BeamDappedEndView() {
     }
   }, [printMode])
 
-  // The @media print rules only take effect once the browser actually starts printing (not when
-  // print mode is toggled on-screen), which resizes the 3D pane again — re-fit once more so the
-  // camera framing matches the printed page's canvas size, not the smaller on-screen preview size.
+  // Belt-and-braces re-fit right before the print snapshot is taken, in case anything (e.g. a
+  // scrollbar disappearing, or App.tsx's page-fit scaling pass) nudged the canvas's pixel size
+  // between the printMode effect above and the actual print.
   useEffect(() => {
     const handleBeforePrint = () => {
-      setTimeout(() => viewControllerRef.current?.fitView('iso'), 100)
+      viewControllerRef.current?.fitView('iso')
     }
     window.addEventListener('beforeprint', handleBeforePrint)
     return () => window.removeEventListener('beforeprint', handleBeforePrint)
@@ -745,19 +745,21 @@ function BeamDappedEndView() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div className="absolute right-2 top-2 z-10 flex flex-col items-end gap-1">
-        {viewButtons.map(({ preset, label, Icon }) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => applyView(preset)}
-            className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-xs font-medium text-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
-          >
-            {label}
-            <Icon />
-          </button>
-        ))}
-      </div>
+      {!printMode && (
+        <div className="absolute right-2 top-2 z-10 flex flex-col items-end gap-1">
+          {viewButtons.map(({ preset, label, Icon }) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => applyView(preset)}
+              className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white/90 px-2 py-1 text-xs font-medium text-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none"
+            >
+              {label}
+              <Icon />
+            </button>
+          ))}
+        </div>
+      )}
 
       <Canvas orthographic dpr={[1, 2]} camera={{ position: [8, 8, 8], zoom: 50, near: 0.1, far: 1000 }}>
         <group ref={sceneRef}>
@@ -765,7 +767,13 @@ function BeamDappedEndView() {
         </group>
         <ViewController ref={viewControllerRef} controlsRef={controlsRef} sceneRef={sceneRef} />
         <InitialFit viewControllerRef={viewControllerRef} />
-        <OrbitControls ref={controlsRef} enableDamping dampingFactor={0.1} />
+        <OrbitControls
+          ref={controlsRef}
+          enableDamping
+          dampingFactor={0.1}
+          enableRotate={!printMode}
+          enablePan={!printMode}
+        />
       </Canvas>
 
       <Legend3D items={legendItems} />

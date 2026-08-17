@@ -107,28 +107,61 @@ body {
  * 3D view below it, calculations spanning the full right column. Two classes
  * (`.pane-grid.print-mode`) outrank any aspect-ratio breakpoint's single-class `.pane-grid` rule
  * regardless of source order or window shape, so this always wins while active.
+ *
+ * This is deliberately unclamped (auto height, no scrolling container) rather than gated behind
+ * `@media print`: printMode is already true — and this layout already painted — well before any
+ * print event fires (the button waits 250ms before calling window.print()), whereas relying on
+ * `@media print`/`beforeprint` timing to swap the layout turned out to be unreliable in real
+ * browsers (confirmed in Brave: the 3D pane printed as a squashed sliver because the grid hadn't
+ * actually reflowed to its print sizing by the time the print snapshot was taken). Doing it via
+ * plain React state means the DOM is already fully settled — grid, 3D canvas resize, and camera
+ * refit included — long before printing starts, nothing left to race.
  */
 .pane-grid.print-mode {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  /* The 3D view's row takes whatever space is left after the left panel's own height, instead of
-     a fixed pixel height — grid items stretch to fill their row by default. */
-  grid-template-rows: auto 1fr;
-  grid-template-areas:
-    'left center'
-    'right center';
-  overflow-y: auto;
+  grid-template-columns: 30fr 70fr;
+  grid-template-areas: 'leftcol center';
+  height: auto;
+  overflow: visible;
 }
 
-.pane-grid.print-mode .pane-left,
+/*
+ * The left column (input panel + 3D view) is a single grid item spanning the whole row, so it
+ * gets stretched to match the center column's height (typically the taller one, since it holds
+ * all the calculations) — then a flex column inside distributes that real height between the
+ * input panel (natural size) and the 3D view (flex: 1, taking whatever's left). This is what lets
+ * the 3D view's box match the page's true available space instead of a guessed fixed size, and
+ * its content — which fitView already centers within its own canvas — ends up vertically centered
+ * in that real space too.
+ */
+.pane-grid.print-mode .pane-leftcol {
+  grid-area: leftcol;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane-grid.print-mode .pane-left {
+  overflow: visible;
+  min-height: 0;
+}
+
 .pane-grid.print-mode .pane-center {
   overflow: visible;
   min-height: 0;
 }
 
 .pane-grid.print-mode .pane-right {
+  flex: 1 1 0;
   overflow: hidden;
   min-height: 0;
+}
+
+/* The whole printout is meant to fit a single physical page — see App.tsx's beforeprint handler,
+   which measures the natural (unscaled) size below and shrinks it to fit. */
+@page {
+  size: A4;
+  margin: 10mm;
 }
 
 /* The physical printout should only ever show the calculator content, not the toolbar (including
@@ -136,24 +169,5 @@ body {
 @media print {
   header {
     display: none !important;
-  }
-
-  /*
-   * On screen, the app is clamped to h-screen and scrolls internally (.pane-grid's own
-   * overflow-y: auto) so everything fits in one viewport. For print that's wrong: clamping the
-   * grid's height meant the 3D view's "1fr" row only got whatever was left over after the (often
-   * very tall) left panel claimed its "auto" row, so the viewport shrank to a sliver. Let the
-   * whole app grow to its natural height instead, so the browser paginates the overflow across as
-   * many physical pages as needed, and give the 3D view row a fixed, generous height of its own
-   * (independent of the left panel's height) so it actually fills real page space.
-   */
-  .flex.h-screen.flex-col {
-    height: auto !important;
-  }
-
-  .pane-grid.print-mode {
-    height: auto !important;
-    overflow: visible !important;
-    grid-template-rows: auto 70vh;
   }
 }
